@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: "jmarrero-kinoite"
+  IMAGE_NAME: "jmarrero-atomic"
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
   REGISTRY_USER: ${{ github.actor }}
   REGISTRY_PASSWORD: ${{ github.token }}
@@ -38,30 +38,3 @@ jobs:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
-          extra-args: |
-            --disable-content-trust
-            
-#  docker-buildx:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Checkout code
-#        uses: actions/checkout@v3
-
-#      - name: Set up Docker Buildx
-#        id: buildx
-#        uses: docker/setup-buildx-action@v2
-
-#      - name: Login to dhcr.io
-#        uses: docker/login-action@v2
-#        with:
-#          registry: ghcr.io
-#          username: ${{ github.actor }}
-#          password: ${{ secrets.GITHUB_TOKEN }}
-      
-#      - name: Build container image and push to ghcr.io
-#        uses: docker/build-push-action@v3
-#        with:
-#          context: .
-#          tags: |
-#            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:docker-latest"
-#          push: ${{ github.ref == 'refs/heads/main' }}
