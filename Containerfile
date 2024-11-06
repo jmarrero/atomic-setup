@@ -9,3 +9,4 @@ RUN dnf -y install \
     # dev tools
     make xsel strace \
     # preffered tools
+    tmux neovim
