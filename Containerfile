@@ -21,7 +21,7 @@ RUN rpm-ostree install bootc dnf5 dnf5-plugins && \
     # preffered tools
     util-linux-user fish tmux neovim code \
     # logitech mouse/keyboard pairing & apple superdrive
-    solaar sg3_utils
+    solaar sg3_utils \
     # add podman-machine for podman-bootc
     podman-machine && \
     # Install podman-bootc thru copr
