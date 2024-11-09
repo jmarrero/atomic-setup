@@ -23,8 +23,8 @@ RUN rpm-ostree install bootc dnf5 dnf5-plugins && \
     # logitech mouse/keyboard pairing & apple superdrive
     solaar sg3_utils
     # add podman-machine for podman-bootc
-    #podman-machine && \
+    podman-machine && \
     # Install podman-bootc thru copr
-    #dnf -y install 'dnf-command(copr)' && \
-    #dnf -y copr enable gmaglione/podman-bootc && \
-    #dnf -y install podman-bootc
+    dnf -y install 'dnf-command(copr)' && \
+    dnf -y copr enable gmaglione/podman-bootc && \
+    dnf -y install podman-bootc
