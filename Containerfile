@@ -26,4 +26,7 @@ RUN \
     # Install podman-bootc thru copr
     dnf -y install 'dnf-command(copr)' && \
     dnf -y copr enable gmaglione/podman-bootc && \
-    dnf -y install podman-bootc
+    dnf -y install podman-bootc && \
+    # ghostty
+    dnf -y copr enable pgdev/ghostty && \
+    dnf -y install ghostty
