@@ -1,27 +1,18 @@
-FROM quay.io/fedora/fedora-silverblue:41
+FROM quay.io/fedora/fedora-bootc:42
+
+RUN mkdir -p /usr/lib/bootc/kargs.d
+RUN echo 'kargs = ["radeon.si_support=0", "radeon.cik_support=0", "amdgpu.si_support=1", "amdgpu.cik_support=1", "amdgpu.dc=1"]' | \
+    tee /usr/lib/bootc/kargs.d/00-amdgpu.toml > /dev/null
+
 RUN \
-    ## Add vscode repo and key
-    rpm --import https://packages.microsoft.com/keys/microsoft.asc && \
-    sh -c 'echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/vscode.repo' && \
     dnf -y install \
-    # sign git tags for releases
-    git-evtag pinentry \
-    # local debug tools 
+    # container tools
+    podman toolbox \
+    # local debug tools
     htop ripgrep  \
-    # kerberos auth
-    krb5-workstation \
-    # run local qemu vms
-    libvirt-daemon-config-network libvirt-daemon-kvm qemu-kvm \
-    virt-install virt-manager virt-viewer \
-    # dev tools
-    make xsel strace \
+    # smb mounts
+    cifs-utils \
     # preffered tools
-    util-linux-user fish tmux neovim code \
-    # logitech mouse/keyboard pairing & apple superdrive
-    solaar sg3_utils \
-    # add podman-machine for podman-bootc
-    podman-gvproxy virtiofsd podman-machine && \
-    # Install podman-bootc thru copr
-    dnf -y install 'dnf-command(copr)' && \
-    dnf -y copr enable gmaglione/podman-bootc && \
-    dnf -y install podman-bootc
+    util-linux-user fish && \
+    # cleanup and verification stage
+    dnf clean all && bootc container lint
