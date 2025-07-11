@@ -13,6 +13,6 @@ RUN \
     # smb mounts
     cifs-utils \
     # preffered tools
-    util-linux-user fish && \
+    util-linux-user fish tuned && \
     # cleanup and verification stage
     dnf clean all && bootc container lint
