@@ -1,0 +1,6 @@
+FROM quay.io/centos-bootc/centos-bootc:stream10
+RUN dnf remove -y kernel kernel-core kernel-modules kernel-modules-core && dnf install -y kernel-64k
+COPY /usr /usr
+RUN rm -rf /boot/*
+RUN bootc container lint
+
