@@ -19,7 +19,8 @@ RUN \
     # preffered tools
     util-linux-user fish make xsel tmux neovim \
     # logitech mouse/keyboard pairing & apple superdrive
-    solaar sg3_utils 
+    solaar sg3_utils \
+    # Virt stack
     libvirt-daemon-config-network libvirt-daemon-kvm qemu-kvm \
     virt-install virt-manager virt-viewer virtiofsd && \
     # clean up
