@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora-kinoite:43
+FROM quay.io/fedora/fedora-silverblue:43
 COPY /etc /etc
 COPY /usr /usr
 COPY . .
