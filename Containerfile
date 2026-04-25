@@ -17,7 +17,7 @@ RUN \
     # search tool
     ripgrep \
     # preffered tools
-    util-linux-user fish make xsel tmux neovim \
+    util-linux-user zsh make xsel tmux neovim \
     # logitech mouse/keyboard pairing & apple superdrive
     solaar sg3_utils \
     # Virt stack
