@@ -24,4 +24,11 @@ RUN \
     libvirt-daemon-config-network libvirt-daemon-kvm qemu-kvm \
     virt-install virt-manager virt-viewer virtiofsd && \
     # clean up
-    dnf clean all && rm -rf /var/* && rm -rf /workdir && bootc container lint
+    dnf clean all && rm -rf /var/* && \
+    # Rebuild initramfs with ostree, lvm, crypt modules and thunderbolt udev rule
+    mkdir -p /var/tmp && \
+    kver=$(ls /usr/lib/modules) && \
+    dracut --verbose --force --reproducible \
+        --install "/etc/udev/rules.d/98-thunderbolt.rules" \
+        "/usr/lib/modules/${kver}/initramfs.img" "${kver}" && \
+    rm -rf /var/tmp && rm -rf /workdir && bootc container lint
