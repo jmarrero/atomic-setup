@@ -3,7 +3,7 @@ ARG FEDORA_VERSION=45
 # Build Broadcom's out-of-tree wl module against the kernel shipped in the
 # image.  uname -r cannot be used here because it reports the build host's
 # kernel rather than the target image's kernel.
-FROM quay.io/fedora/fedora-kinoite:${FEDORA_VERSION} AS wl-builder
+FROM quay.io/fedora/silverblue-kinoite:${FEDORA_VERSION} AS wl-builder
 ARG FEDORA_VERSION
 RUN \
     dnf -y install \
