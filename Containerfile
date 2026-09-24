@@ -20,7 +20,7 @@ RUN \
     akmods --force --kernels "${kver}" && \
     test -n "$(find /var/cache/akmods/wl -maxdepth 1 -name 'kmod-wl-*.rpm' -print -quit)"
 
-FROM quay.io/fedora/fedora-kinoite:${FEDORA_VERSION}
+FROM quay.io/fedora/fedora-silverblue:${FEDORA_VERSION}
 ARG FEDORA_VERSION
 COPY /etc /etc
 COPY /usr /usr
