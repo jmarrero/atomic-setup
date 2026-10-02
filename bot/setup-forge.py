@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""Set up the forge org's work tracking: tracker repo, labels, org profile and
-the Workstream project board. Idempotent: existing things are left alone.
+"""Set up what homegit's harness needs on GitHub (see its docs/bootstrap.md):
+the forge org's tracker, heartbeat issue, private bot-ops repo, profile, forks
+and Workstream board, and the bot's own profile/issue repo. Idempotent:
+existing things are left alone.
 
 Usage: set -a; . ~/.config/bootc-bot/env; set +a; python3 bot/setup-forge.py
 
@@ -24,6 +26,9 @@ BOARD = "Workstream"
 # testing happens elsewhere, and forks would otherwise run upstream CI that
 # needs upstream's secrets and runners.
 FORKS = ["ostreedev/ostree", "coreos/rpm-ostree", "bootc-dev/bootc"]
+# The harness itself, configured for us with an operator config rather than
+# edits (bot.homegit_repo).
+HARNESS = "cgwalters-bot/homegit"
 COMMITTER = {"name": "Joseph Marrero", "email": "jmarrero+bot@gmail.com"}
 
 # Field names and options must match what homegit's bin/ tools expect
@@ -47,7 +52,10 @@ WORKFLOWS = [
     ("pr", "PURPLE", "May open the upstream PR directly; only a human sets this"),
     ("manual", "ORANGE", "Done by a human"),
 ]
-ORGS = [(o, "GRAY", "") for o in sorted({u.split("/")[0] for u in FORKS})] + [("other", "GRAY", "")]
+# One per upstream org, plus the bot's own infrastructure, plus other.
+ORGS = ([(o, "GRAY", "") for o in sorted({u.split("/")[0] for u in FORKS})]
+        + [(BOT, "GRAY", "The bot's own repositories"), (ORG, "GRAY", "This forge org"),
+           ("other", "GRAY", "")])
 TEXT_FIELDS = ["Why", "Branch", "Gist"]
 LABELS = [  # (name, color, description)
     ("question", "D876E3", f"A question for @{HUMAN}; answer with an option letter"),
@@ -100,6 +108,26 @@ If something from this organization is a problem for you, mention
 [@{HUMAN}](https://github.com/{HUMAN}).
 """
 
+BOT_PROFILE_README = f"""# {BOT}
+
+A semi-autonomous agent account operated by Joseph Marrero
+([@{HUMAN}](https://github.com/{HUMAN})), running
+[homegit](https://github.com/{ORG}/homegit)'s harness. It acts only on
+@{HUMAN}'s requests: it proposes changes as draft pull requests in
+[{ORG}](https://github.com/{ORG}) forks for his review, and only his approval
+sends one upstream. What it is working on is on the
+[{BOARD} board](https://github.com/orgs/{ORG}/projects/1).
+
+Reactions and mentions from others are filed as issues here for @{HUMAN}.
+
+## LLMs
+
+Text and code from this account are written by LLM agents (Claude Code and
+GitHub Copilot models), reviewed by @{HUMAN} before anything goes upstream.
+Commits carry a `Generated-by:` line pointing here. If something from this
+account is a problem for you, mention [@{HUMAN}](https://github.com/{HUMAN}).
+"""
+
 TOKEN = os.environ.get("BOTD_GITHUB_TOKEN") or sys.exit("BOTD_GITHUB_TOKEN is not set")
 
 
@@ -129,30 +157,32 @@ def graphql(query, **variables):
     return body["data"]
 
 
-def ensure_repo(name, description):
-    status, _ = api("GET", f"/repos/{ORG}/{name}")
+def ensure_repo(name, description, owner=ORG, private=False):
+    status, _ = api("GET", f"/repos/{owner}/{name}")
     if status == 200:
-        print(f"repo {ORG}/{name}: exists")
+        print(f"repo {owner}/{name}: exists")
         return
-    status, body = api("POST", f"/orgs/{ORG}/repos", {
-        "name": name, "description": description, "visibility": "public",
+    # The bot's own repos are created as the user, the rest in the org.
+    path = "/user/repos" if owner == BOT else f"/orgs/{owner}/repos"
+    status, body = api("POST", path, {
+        "name": name, "description": description, "private": private,
         "has_wiki": False, "has_projects": True, "auto_init": False})
     if status != 201:
-        raise RuntimeError(f"create repo {name}: HTTP {status}: {body}")
-    print(f"repo {ORG}/{name}: created")
+        raise RuntimeError(f"create repo {owner}/{name}: HTTP {status}: {body}")
+    print(f"repo {owner}/{name}: created ({'private' if private else 'public'})")
 
 
-def ensure_file(repo, path, content, message):
-    status, _ = api("GET", f"/repos/{ORG}/{repo}/contents/{path}")
+def ensure_file(repo, path, content, message, owner=ORG):
+    status, _ = api("GET", f"/repos/{owner}/{repo}/contents/{path}")
     if status == 200:
-        print(f"{repo}/{path}: exists")
+        print(f"{owner}/{repo}/{path}: exists")
         return
-    status, body = api("PUT", f"/repos/{ORG}/{repo}/contents/{path}", {
+    status, body = api("PUT", f"/repos/{owner}/{repo}/contents/{path}", {
         "message": message, "content": base64.b64encode(content.encode()).decode(),
         "committer": COMMITTER, "author": COMMITTER})
     if status not in (200, 201):
-        raise RuntimeError(f"write {repo}/{path}: HTTP {status}: {body}")
-    print(f"{repo}/{path}: written")
+        raise RuntimeError(f"write {owner}/{repo}/{path}: HTTP {status}: {body}")
+    print(f"{owner}/{repo}/{path}: written")
 
 
 def ensure_labels(repo):
@@ -168,6 +198,28 @@ def ensure_labels(repo):
         if status not in (200, 201):
             raise RuntimeError(f"label {name}: HTTP {status}: {body}")
     print(f"{repo} labels: {', '.join(n for n, _, _ in LABELS)}")
+
+
+def ensure_issue(repo, title, body, pin=False):
+    """Find or open an issue by title, locked (and optionally pinned)."""
+    status, issues = api("GET", f"/repos/{repo}/issues?state=all&creator={BOT}&per_page=100")
+    issue = next((i for i in issues if i["title"] == title and "pull_request" not in i), None) \
+        if status == 200 else None
+    if issue:
+        print(f"{repo}#{issue['number']} {title!r}: exists")
+    else:
+        status, issue = api("POST", f"/repos/{repo}/issues", {"title": title, "body": body})
+        if status != 201:
+            raise RuntimeError(f"open {title!r} in {repo}: HTTP {status}: {issue}")
+        print(f"{repo}#{issue['number']} {title!r}: opened")
+    if not issue.get("locked"):
+        status, body = api("PUT", f"/repos/{repo}/issues/{issue['number']}/lock", {})
+        if status != 204:
+            raise RuntimeError(f"lock {repo}#{issue['number']}: HTTP {status}: {body}")
+    if pin:
+        graphql("""mutation($id: ID!) { pinIssue(input: {issueId: $id}) { issue { id } } }""",
+                id=issue["node_id"])
+    return issue["number"]
 
 
 def ensure_fork(upstream):
@@ -277,7 +329,23 @@ def main():
     ensure_repo(".github", f"Profile for the {ORG} organization")
     ensure_file(".github", "profile/README.md", PROFILE_README, "Add organization profile")
 
-    for upstream in FORKS:
+    heartbeat = ensure_issue(f"{ORG}/tracker", "Bot heartbeat",
+                             "Written by `bot-heartbeat`: the coordinator's loop state and workers.",
+                             pin=True)
+    print(f"  -> operator config: \"heartbeat_issue\": {heartbeat}")
+
+    # bot-heartbeat's usage snapshots must not be public.
+    ensure_repo("bot-ops", "Private operational data for the bot harness", private=True)
+    usage = ensure_issue(f"{ORG}/bot-ops", "Bot usage", "Written by `bot-heartbeat publish`.")
+    if usage != 1:
+        print(f"warning: bot-ops 'Bot usage' is #{usage}, but bot-heartbeat expects #1")
+
+    # bot.issue_repo: where pings and reactions from others are filed. A repo
+    # named after the account is also its profile README.
+    ensure_repo(BOT, "Issues for the operator about this bot, and its profile", owner=BOT)
+    ensure_file(BOT, "README.md", BOT_PROFILE_README, "Add profile README", owner=BOT)
+
+    for upstream in FORKS + [HARNESS]:
         ensure_fork(upstream)
 
     try:

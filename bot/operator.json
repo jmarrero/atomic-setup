@@ -1,0 +1,13 @@
+{
+  "operator": {"login": "jmarrero", "name": "Joseph Marrero Corchado", "email": "jmarrero@redhat.com"},
+  "bot": {
+    "login": "jmarrero-bot",
+    "git_name": "Joseph Marrero",
+    "git_email": "jmarrero+bot@gmail.com",
+    "homegit_repo": "jmarrero-forge/homegit"
+  },
+  "forge_org": "jmarrero-forge",
+  "heartbeat_issue": 1,
+  "generated_by_url": "https://github.com/jmarrero-bot#llms",
+  "devspace": {"repo": "bootc-dev/jmarrero-devspace-sandbox", "host_prefix": "jmarrero-devspace-"}
+}

@@ -204,20 +204,52 @@ credential they're given, so revoke and recreate it if one ever leaks.
 Trigger it with `@jmarrero-bot claude <request>` or
 `@jmarrero-bot opencode <request>` at the start of a comment line.
 
-## 7. Coordinating with cgwalters' harness
+## 7. homegit, cgwalters' harness
 
-- cgwalters-bot opened the private repo
-  [cgwalters-forge/harness-coordination](https://github.com/cgwalters-forge/harness-coordination)
-  for the two bots. Its README is the bootstrap guide. jmarrero-bot can read
-  it (it needs the `repo` scope for that); jmarrero joins only to take part
-  directly.
-- Ask questions there by opening an issue that mentions `@cgwalters-bot`. It
-  answers but never acts outside that repo on jmarrero-bot's request.
-- homegit's tools are still hardcoded to cgwalters. **TODO:** once its
-  operator-config change lands, install them with `make install-bin` and
-  `make install-crates` (never `make install`, which copies cgwalters'
-  dotfiles into `~`), copy the skills, and write your own `AGENTS.md`.
-- homegit has no license file yet; ask before copying from it.
+homegit's tools take an operator config
+([homegit docs/bootstrap.md](https://github.com/jmarrero-forge/homegit/blob/main/docs/bootstrap.md)),
+so they run unmodified from a fork:
+
+1. Fork `cgwalters-bot/homegit` into `jmarrero-forge` (done by
+   `setup-forge.py`, Actions disabled). The clone is
+   `~/development/github/jmarrero-forge/homegit`, with `upstream` =
+   cgwalters-bot's; the skills expect it at `~/src/github/jmarrero-bot/homegit`,
+   which is where the bot container mounts it.
+2. `setup-forge.py` also creates what the tools need on GitHub: the pinned,
+   locked "Bot heartbeat" issue (tracker#1), the private `bot-ops` repo with
+   locked issue #1 "Bot usage", the bot's own `jmarrero-bot/jmarrero-bot`
+   repo (its profile README, with the `#llms` section that `Generated-by:`
+   lines link to, and where pings from others are filed), and the board's
+   Org options for the bot's own infrastructure.
+3. Install the operator config, [`operator.json`](operator.json):
+
+       install -D -m 644 bot/operator.json ~/.config/bot-harness/operator.json
+
+   The operator is `Joseph Marrero Corchado <jmarrero@redhat.com>`, the
+   identity `bot-pr promote` and `signoff` add as `Signed-off-by` after your
+   approval. The bot commits as `Joseph Marrero <jmarrero+bot@gmail.com>`.
+4. Check it (read-only), in the bot container with the gh secret:
+
+       podman run --rm --userns=keep-id:uid=2000,gid=2000 \
+         --secret jmarrero-bot-gh-token,type=env,target=GH_TOKEN \
+         -v ~/development/github/jmarrero-forge/homegit:/home/agent/src/github/jmarrero-bot/homegit:ro,z \
+         -v ~/.config/bot-harness:/home/agent/.config/bot-harness:ro,z \
+         localhost/bootc-bot-agent bash -c 'cd ~/src/github/jmarrero-bot/homegit &&
+           PATH=$PWD/bin:$PATH; bot-operator --json; bot-board list;
+           bot-watch --dry-run; bot-notify --dry-run'
+
+   All passed on 2026-10-02 against the jmarrero-forge board.
+5. **TODO:** the first real runs create the board's `bot-state:` items;
+   `bot-board state-put` prints their ids, which go into `operator.json` as
+   `board.state_items`.
+6. **TODO:** review `upstream-policy/` in the fork. It starts with
+   cgwalters' records, and `bot-pr promote` trusts them; only `jmarrero`
+   can loosen a verdict.
+7. Not configurable yet upstream: `bot-cost`, `bot-retro` and the review
+   app still name cgwalters' setup.
+8. cgwalters-bot opened the private
+   [cgwalters-forge/harness-coordination](https://github.com/cgwalters-forge/harness-coordination)
+   repo for the two bots; jmarrero-bot can read it.
 
 ## 8. Temporary access to remove
 
