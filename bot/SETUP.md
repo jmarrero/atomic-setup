@@ -41,8 +41,9 @@ manual step, in order, so the setup can be checked or redone. Steps marked
 
 1. Create the bot account `jmarrero-bot` (a separate GitHub user). Give it a
    profile README saying it is an agent account operated by jmarrero.
-2. **TODO:** add and verify `jmarrero+bot@gmail.com` as an email on
-   jmarrero-bot, so its commits are attributed to the bot account.
+2. Add and verify `jmarrero+bot@gmail.com` as an email on jmarrero-bot, so
+   its commits are attributed to the bot account, and enable two-factor
+   authentication on it (tokens keep working; 2FA protects the web login).
 3. As jmarrero-bot, create a **classic** personal access token (fine-grained
    tokens can't read notifications) with exactly these scopes:
    `repo`, `workflow`, `gist`, `notifications`, `project`, `read:org`.
