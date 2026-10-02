@@ -40,14 +40,11 @@ cpus = "4"
 # "{prompt}" is replaced by the full prompt as a single argv element (no shell).
 # "env" lists variables passed into the job container: "NAME" passes NAME from
 # botd's environment, "INNER=OUTER" passes botd's OUTER as INNER.
+# [agents.<name>.secrets] maps env vars to podman secrets (ENV = "secret-name"),
+# and [agents.<name>.credential_files] mounts single files read-only
+# ("/home/agent/path" = "~/host/path"). Prefer secrets: revocable tokens made
+# for the bot, never your own CLI logins.
 # If an agent writes /bot/out/reply.md, that file is posted; otherwise stdout.
-
-# Reuse local CLI logins. Each job receives only its agent's login file.
-# These files are mounted read-only; refresh expired logins on the host.
-[agents.codex]
-command = ["codex", "exec", "--dangerously-bypass-approvals-and-sandbox", "-c", 'cli_auth_credentials_store="file"', "--output-last-message", "/bot/out/reply.md", "{prompt}"]
-[agents.codex.credential_files]
-"/home/agent/.codex/auth.json" = "~/.codex/auth.json"
 
 [agents.claude]
 command = ["claude", "--print", "--dangerously-skip-permissions", "--output-format", "text", "{prompt}"]

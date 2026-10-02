@@ -41,12 +41,13 @@ botd redacts known secrets and posts the reply with the bot token
   They're matched by numeric user id, never by login, because a login can be
   renamed and then registered by someone else.
 - **What the agent can do:** the job container gets no GitHub credentials,
-  only its configured CLI login file or API key. The bot token, which can post comments,
-  never enters it.
+  only its agent's model credential (a podman secret). The bot token, which can
+  post comments, never enters it.
 - **Prompt injection is the remaining risk:** a member can ask about an issue
   written by anyone, and that text reaches the agent. The prompt tells the
-  agent to treat it as data, but assume that sometimes won't hold. Mounted
-  logins let jobs use your account and subscription limits. Consider:
+  agent to treat it as data, but assume that sometimes won't hold. A job can
+  read its model credential, so use tokens made for the bot (revocable without
+  logging you out), never your own CLI logins. Consider:
   - Restricting network egress from job containers (for example, a
     `--network` with a proxy that only allows api.anthropic.com, api.openai.com,
     github.com and package mirrors).
@@ -72,22 +73,18 @@ botd redacts known secrets and posts the reply with the bot token
        cp bot/config.example.toml ~/.config/bootc-bot/config.toml
        install -m 600 bot/env.example ~/.config/bootc-bot/env        # fill in tokens
 
-   The example enables `codex` and `claude` using your existing local logins:
-   `~/.codex/auth.json` and `~/.claude/.credentials.json`. No new service API
-   keys are needed. Each agent receives only its own file, mounted read-only;
-   your CLI settings, plugins, and history are not mounted. Paths expand relative
-   to the user running botd. Remove an agent section if you do not use it.
+   The example enables `claude`, using a long-lived token from
+   `claude setup-token` (billed to your Claude subscription) stored as a podman
+   secret, so jobs never see your own `~/.claude` login:
 
-   Rebuild the image after updating: its CLI directories must be owned by the
-   `agent` user so session files can be written alongside the mounted credentials.
-   The commands run noninteractively and rely on the disposable container for
-   isolation. Trigger them with `@<bot-account> codex <request>` or
+       claude setup-token     # prints a URL to open on any machine, then the token
+       read -s TOK; printf %s "$TOK" | podman secret create jmarrero-bot-claude-token -; unset TOK
+
+   Each agent gets only the secrets in its `[agents.<name>.secrets]`, as env
+   vars; your CLI settings, plugins and history are not mounted. botd reads the
+   secret values only to redact them. The commands run noninteractively and
+   rely on the disposable container for isolation. Trigger one with
    `@<bot-account> claude <request>`.
-
-   Credential refresh cannot be saved through a read-only mount. If authentication
-   expires or refresh fails, refresh the login locally; the next job mounts the
-   current file. No daemon restart is needed. On SELinux hosts, `:z` applies a
-   shared container label to these two files to allow concurrent jobs.
 
 5. **Check:** `set -a; . ~/.config/bootc-bot/env; set +a; python3 bot/botd.py --check`
 6. **Run always-on** (on the host, not in a toolbox). botd is a plain systemd
