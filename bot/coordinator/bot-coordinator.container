@@ -24,7 +24,7 @@ NoNewPrivileges=true
 DropCapability=all
 # Its first message, so it starts working on every start (boot, restart)
 # without anyone attaching; comment out to have it wait for you instead.
-Environment=COORDINATOR_PROMPT=Load the coordinator skill and run the bot.
+Environment="COORDINATOR_PROMPT=Load the coordinator skill and run the bot."
 
 [Service]
 # Always: ending the Claude session (/exit, or by accident) is a clean exit,
