@@ -26,7 +26,8 @@ botd.py (systemd user service on the host)
   • per-user rate limit, queue limit, max request age
                           │
                           ▼
-podman run --rm bootc-bot-agent   (uid 2000, no caps, no-new-privileges,
+podman run --rm bootc-bot-agent   (uid 2000 = a subordinate uid on the host,
+                                   no caps, no-new-privileges,
   bot-run.sh: public clone,        memory/cpu/pids limits, timeout)
   checkout PR head, run agent
                           │ stdout or /bot/out/reply.md
@@ -49,6 +50,12 @@ botd redacts known secrets and posts the reply with the bot token
 - **What the agent can do:** the job container gets no GitHub credentials,
   only its agent's model credential (a podman secret). The bot token, which can
   post comments, never enters it.
+- **Who the job is on the host:** its user maps to a subordinate uid, not
+  yours, so a job that escaped its container couldn't read your files or the
+  tokens. botd reads the job's `reply.md` only if it's a regular file (not a
+  symlink to one of your files), and cleans up with `podman unshare`. Only
+  the legacy `credential_files` mounts (0600 files of yours) still run the job
+  as your user.
 - **Prompt injection is the remaining risk:** an allowed user can ask about an issue
   written by anyone, and that text reaches the agent. The prompt tells the
   agent to treat it as data, but assume that sometimes won't hold. A job can

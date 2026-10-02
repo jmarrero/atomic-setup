@@ -317,7 +317,8 @@ Then tell it "Load the coordinator skill and run the bot."
 - **Credentials** live only on the bot machine: `~/.config/bootc-bot/env`
   (mode 600) and podman secrets. None is in this repo, an image, or a
   devspace.
-- **botd's jobs** get no GitHub token, only their model credential; see
+- **botd's jobs** get no GitHub token, only their model credential, and run
+  as a subordinate uid rather than your user; see
   [README.md](README.md#security-model).
 - **The coordinator** holds the bot's GitHub token and runs Claude with
   permission prompts skipped, the same trade-off cgwalters' setup makes. It

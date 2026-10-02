@@ -15,6 +15,7 @@ import logging
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -158,7 +159,8 @@ def credential_mounts(agent):
                     collect(child)
 
         collect(credentials)
-        # Shared label permits concurrent jobs; keep-id makes mode 0600 readable.
+        # Shared label permits concurrent jobs. A mode 0600 file is only
+        # readable with the job mapped to the host user (see _run_container).
         args += ["-v", f"{source}:{destination}:ro,z"]
     return args, secrets
 
@@ -181,6 +183,31 @@ def secret_args(agent):
         secrets.append(p.stdout.strip())
         args += ["--secret", f"{secret},type=env,target={env_name}"]
     return args, secrets
+
+
+def read_job_file(path, env, limit=1 << 20):
+    """Read a file a job wrote, as owned by its subordinate uid ("" if absent).
+
+    Only a regular file counts: a job could otherwise make it a symlink to one
+    of the host user's files and have its contents posted. The job has exited
+    by now, so it can't swap the file after this check.
+    """
+    try:
+        st = os.lstat(path)
+    except FileNotFoundError:
+        return ""
+    if not stat.S_ISREG(st.st_mode) or st.st_size > limit:
+        log.warning("ignoring %s: not a regular file of at most %d bytes", path, limit)
+        return ""
+    p = subprocess.run(["podman", "unshare", "cat", "--", path],
+                       env=env, capture_output=True, text=True)
+    return p.stdout.strip() if p.returncode == 0 else ""
+
+
+def remove_job_dir(path, env):
+    """Remove a job's directory, including files its subordinate uid owns."""
+    subprocess.run(["podman", "unshare", "rm", "-rf", "--", path], env=env, capture_output=True)
+    shutil.rmtree(path, ignore_errors=True)
 
 
 @dataclass
@@ -499,17 +526,28 @@ class Bot:
                 env_args += ["-e", inner]
                 secrets.append(value)
 
-        with tempfile.TemporaryDirectory(prefix="bootc-bot-") as tmp:
+        # The job's files live in a private (0700) directory on the host. The
+        # job runs as a subordinate uid, not the host user, so it gets a
+        # world-writable out/ inside it, and what it writes is read and
+        # removed through `podman unshare`.
+        tmp = tempfile.mkdtemp(prefix="bootc-bot-")
+        try:
             ctx, out = os.path.join(tmp, "context"), os.path.join(tmp, "out")
             os.mkdir(ctx)
             os.mkdir(out)
+            os.chmod(out, 0o777)
             shutil.copy(BOT_RUN, os.path.join(ctx, "bot-run.sh"))
             with open(os.path.join(ctx, "thread.md"), "w") as f:
                 f.write(self.render_thread(job))
 
+            # The container's "agent" (uid 2000) maps to a subordinate uid, so
+            # a job that escaped its container still isn't the host user, who
+            # holds the bot's tokens. Only legacy credential_files mounts,
+            # which are 0600 files of the host user, need the job to be that
+            # user (keep-id).
+            userns = ["--userns=keep-id:uid=2000,gid=2000"] if mount_args else []
             cmd = ["podman", "run", "--rm", "--name", name,
-                   # host user <-> container "agent" (uid 2000) so /bot/out is writable
-                   "--userns=keep-id:uid=2000,gid=2000", "--user", "2000:2000",
+                   *userns, "--user", "2000:2000",
                    "--cap-drop=all", "--security-opt=no-new-privileges",
                    "--pids-limit=4096",
                    f"--memory={self.runner.get('memory', '8g')}",
@@ -529,12 +567,7 @@ class Bot:
                 subprocess.run(["podman", "rm", "-f", name], env=env, capture_output=True)
                 return f"Timed out after {timeout // 60} minutes.", "timeout"
 
-            reply_file = os.path.join(out, "reply.md")
-            reply = ""
-            if os.path.exists(reply_file):
-                with open(reply_file) as f:
-                    reply = f.read().strip()
-            reply = reply or p.stdout.strip()
+            reply = read_job_file(os.path.join(out, "reply.md"), env) or p.stdout.strip()
             if p.returncode != 0:
                 log.warning("job %s stderr:\n%s", job.key, redact(p.stderr, secrets)[-4000:])
                 if not reply:
@@ -542,6 +575,8 @@ class Bot:
                     reply = f"The agent failed.\n\n<details><summary>stderr</summary>\n\n```\n{tail}\n```\n</details>"
             # Last-ditch guard against an injected "print your env" succeeding verbatim.
             return redact(reply or "(no output)", secrets), p.returncode
+        finally:
+            remove_job_dir(tmp, env)
 
     # ---- main loop ---------------------------------------------------------
 
