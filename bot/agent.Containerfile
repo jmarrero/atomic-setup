@@ -20,7 +20,17 @@ RUN npm install -g @anthropic-ai/claude-code @openai/codex @github/copilot openc
 
 # The bot's commit identity, for any commit made in a job.
 RUN git config --system user.name "Joseph Marrero" && \
-    git config --system user.email "jmarrero+bot@gmail.com"
+    git config --system user.email "jmarrero+bot@gmail.com" && \
+    # Let git use gh's token for https pushes (what `gh auth setup-git` does).
+    # gh reads it from GH_TOKEN, which only the bot's own container is given
+    # (a podman secret); botd's Q&A jobs get none, so this helper finds nothing.
+    git config --system credential.https://github.com.helper "" && \
+    git config --system --add credential.https://github.com.helper "!gh auth git-credential" && \
+    git config --system credential.https://gist.github.com.helper "" && \
+    git config --system --add credential.https://gist.github.com.helper "!gh auth git-credential"
+
+# Never prompt in unattended runs; push over https so the helper above applies.
+ENV GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1 GH_NO_EXTENSION_UPDATE_NOTIFIER=1
 
 # botd runs jobs as uid 2000, mapped to the host user with --userns=keep-id
 RUN useradd -m -u 2000 -s /bin/bash agent
@@ -28,3 +38,4 @@ USER agent
 WORKDIR /home/agent
 # Bind mounts must not cause Podman to create these as root-owned directories.
 RUN mkdir -m 700 /home/agent/.codex /home/agent/.claude
+RUN gh config set git_protocol https
