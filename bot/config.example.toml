@@ -53,3 +53,10 @@ command = ["claude", "--print", "--dangerously-skip-permissions", "--output-form
 #   podman secret create jmarrero-bot-claude-token -
 [agents.claude.secrets]
 CLAUDE_CODE_OAUTH_TOKEN = "jmarrero-bot-claude-token"
+
+[agents.opencode]
+# GitHub Copilot models through opencode (bot/copilot-login.sh stores the
+# login as a podman secret). List models with: opencode models github-copilot
+command = ["opencode", "run", "--auto", "-m", "github-copilot/gpt-6.1-sol", "{prompt}"]
+[agents.opencode.secrets]
+OPENCODE_AUTH_CONTENT = "jmarrero-bot-copilot-auth"

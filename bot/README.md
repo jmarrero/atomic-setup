@@ -1,5 +1,8 @@
 # bootc-bot
 
+See [SETUP.md](SETUP.md) for the full runbook of how this bot, its forge
+org, devspaces and credentials were set up.
+
 Comment on an issue or PR in a `bootc-dev` repo (or, for users listed in
 `trusted_user_ids`, any repo the bot account can see):
 
@@ -85,6 +88,11 @@ botd redacts known secrets and posts the reply with the bot token
    secret values only to redact them. The commands run noninteractively and
    rely on the disposable container for isolation. Trigger one with
    `@<bot-account> claude <request>`.
+
+   The example also enables `opencode` with GitHub Copilot models. Store its
+   login with `bot/copilot-login.sh` (a device code you enter on any browser,
+   as the account holding the Copilot license) and trigger it with
+   `@<bot-account> opencode <request>`.
 
 5. **Check:** `set -a; . ~/.config/bootc-bot/env; set +a; python3 bot/botd.py --check`
 6. **Run always-on** (on the host, not in a toolbox). botd is a plain systemd
