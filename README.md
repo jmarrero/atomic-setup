@@ -9,3 +9,11 @@ The setup builds the ./Containerfile using buildah.
 
 The resulting build is pushed to:
 ghcr.io/jmarrero/bootc-macpro61tc:latest
+
+## bot/
+
+`bot/` is the agent bot this machine runs: an @mention responder (botd), a
+coordinator running [homegit](https://github.com/jmarrero-forge/homegit)'s
+harness, and the setup for its forge org and devspaces. Start with
+[bot/SETUP.md](bot/SETUP.md), which also says what to change to set it up
+for someone else. It isn't part of the OS image.

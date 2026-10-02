@@ -1,0 +1,10 @@
+# Containerfile's `COPY . .` puts the build context into the image's /; keep
+# what isn't part of the OS image out of it (and out of any local build).
+.git
+.github
+.gitignore
+.containerignore
+Containerfile
+README.md
+bot
+toolbox

@@ -59,54 +59,19 @@ botd redacts known secrets and posts the reply with the bot token
     github.com and package mirrors).
   - Keeping API keys out of the container entirely, with a host-side proxy
     that injects them (`ANTHROPIC_BASE_URL=http://proxy`).
-- Bot replies and job stderr logs are redacted for exact secret values (including
-  strings in mounted credential JSON), which is a last-ditch
-  guard rather than a boundary.
+- Bot replies and job stderr logs are redacted for exact secret values (the
+  tokens botd holds, the agents' podman secrets, and strings in any mounted
+  credential JSON), which is a last-ditch guard rather than a boundary.
 
 ## Setup
 
-1. **Bot account:** create a GitHub machine user (e.g. `bootc-bot`). Give it a
-   classic PAT with `notifications` and `public_repo`.
-2. **Membership token** (only if you set `[auth].org`): create a classic PAT
-   on *your* account with `read:org` only.
-3. **Image:** `podman build -t localhost/bootc-bot-agent -f bot/agent.Containerfile bot/`.
-   This is a plain Fedora image, deliberately not the toolbox image: jobs
-   don't need toolbox's host integration or the rpm-ostree/cosa build tree,
-   and a smaller image means less for a job to misuse.
-4. **Config:**
-
-       mkdir -p ~/.config/bootc-bot
-       cp bot/config.example.toml ~/.config/bootc-bot/config.toml
-       install -m 600 bot/env.example ~/.config/bootc-bot/env        # fill in tokens
-
-   The example enables `claude`, using a long-lived token from
-   `claude setup-token` (billed to your Claude subscription) stored as a podman
-   secret, so jobs never see your own `~/.claude` login:
-
-       claude setup-token     # prints a URL to open on any machine, then the token
-       read -s TOK; printf %s "$TOK" | podman secret create jmarrero-bot-claude-token -; unset TOK
-
-   Each agent gets only the secrets in its `[agents.<name>.secrets]`, as env
-   vars; your CLI settings, plugins and history are not mounted. botd reads the
-   secret values only to redact them. The commands run noninteractively and
-   rely on the disposable container for isolation. Trigger one with
-   `@<bot-account> claude <request>`.
-
-   The example also enables `opencode` with GitHub Copilot models. Store its
-   login with `bot/copilot-login.sh` (a device code you enter on any browser,
-   as the account holding the Copilot license) and trigger it with
-   `@<bot-account> opencode <request>`.
-
-5. **Check:** `set -a; . ~/.config/bootc-bot/env; set +a; python3 bot/botd.py --check`
-6. **Run always-on** (on the host, not in a toolbox). botd is a plain systemd
-   user service rather than a Quadlet: it has to launch podman containers
-   itself, so running it in a container would mean handing it the podman
-   socket, which is host access anyway.
-
-       systemctl --user link $PWD/bot/bootc-bot.service
-       systemctl --user enable --now bootc-bot
-       sudo loginctl enable-linger $USER    # keep running without a login session
-       journalctl --user -u bootc-bot -f
+See [SETUP.md §6](SETUP.md#6-botd) (and §2 and §5 for its token and model
+credentials). The job image is a plain Fedora image, deliberately not the
+toolbox image: jobs don't need toolbox's host integration or build tree, and
+a smaller image means less for a job to misuse. botd is a systemd user
+service rather than a Quadlet because it starts podman containers itself;
+running it in a container would mean handing it the podman socket, which is
+host access anyway.
 
 ## Limits
 
