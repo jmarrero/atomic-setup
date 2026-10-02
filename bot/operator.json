@@ -1,5 +1,9 @@
 {
-  "operator": {"login": "jmarrero", "name": "Joseph Marrero Corchado", "email": "jmarrero@redhat.com"},
+  "operator": {
+    "login": "jmarrero",
+    "name": "Joseph Marrero Corchado",
+    "email": "jmarrero@redhat.com"
+  },
   "bot": {
     "login": "jmarrero-bot",
     "git_name": "Joseph Marrero",
@@ -9,5 +13,32 @@
   "forge_org": "jmarrero-forge",
   "heartbeat_issue": 1,
   "generated_by_url": "https://github.com/jmarrero-bot#llms",
-  "devspace": {"repo": "bootc-dev/jmarrero-devspace-sandbox", "host_prefix": "jmarrero-devspace-"}
+  "devspace": {
+    "repo": "bootc-dev/jmarrero-devspace-sandbox",
+    "host_prefix": "jmarrero-devspace-"
+  },
+  "board": {
+    "state_items": {
+      "notifications": {
+        "item": "PVTI_lADOFBIZ7c4BlZPrzg-CZvM",
+        "draft": "DI_lADOFBIZ7c4BlZPrzgLQWhA"
+      },
+      "watch": {
+        "item": "PVTI_lADOFBIZ7c4BlZPrzg-CZxA",
+        "draft": "DI_lADOFBIZ7c4BlZPrzgLQWhM"
+      },
+      "pr-inbox": {
+        "item": "PVTI_lADOFBIZ7c4BlZPrzg-CZyg",
+        "draft": "DI_lADOFBIZ7c4BlZPrzgLQWhQ"
+      },
+      "lease": {
+        "item": "PVTI_lADOFBIZ7c4BlZPrzg-CZ0E",
+        "draft": "DI_lADOFBIZ7c4BlZPrzgLQWhY"
+      },
+      "tmt-numbers": {
+        "item": "PVTI_lADOFBIZ7c4BlZPrzg-CZ1M",
+        "draft": "DI_lADOFBIZ7c4BlZPrzgLQWhc"
+      }
+    }
+  }
 }

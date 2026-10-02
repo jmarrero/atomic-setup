@@ -34,8 +34,6 @@ container, started but not yet told to run.
 
 **TODO:**
 
-- After the coordinator's first real sweeps, add the board's `bot-state:`
-  item ids to `operator.json` ([§7](#7-homegit)).
 - Remove jmarrero-bot's Write access on `jmarrero/atomic-setup`
   ([§9](#9-security-notes)).
 
@@ -295,9 +293,13 @@ homegit's tools take an operator config, so they run unmodified from a fork
    comments must be the operator's own: rewrite them on the fork PR, then
    `/promote --human-text`). A record goes stale, and the gate refuses, when
    the project's policy files change upstream.
-5. **TODO:** the coordinator's first real sweeps create the board's
-   `bot-state:` items; `bot-board state-put` prints their ids, which go into
-   `operator.json` as `board.state_items` (and the installed copy).
+5. The tools keep their shared state (handled notifications, the last sweep,
+   the work lease, tmt numbers) in five archived draft items on the board:
+   `bot-state: notifications`, `watch`, `pr-inbox`, `lease` and
+   `tmt-numbers`. Their ids are `board.state_items` in `operator.json`, so
+   every machine and container finds the same items. They were created
+   empty (the same as no state) with `bot-board state-put NAME '{}'`, which
+   prints each id; a new setup does the same once, then adds the ids.
 
 ## 8. The coordinator
 

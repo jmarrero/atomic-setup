@@ -15,7 +15,9 @@ Secret=jmarrero-bot-claude-token,type=env,target=CLAUDE_CODE_OAUTH_TOKEN
 # The persistent home: clones, Claude's sessions, caches, devspace keys.
 # No keep-id: the container's users map to subordinate ids, not to you.
 Volume=bot-coordinator-home:/home/agent
-Volume=%h/.config/bot-harness/operator.json:/home/agent/.config/bot-harness/operator.json:ro,z
+# The directory, not the file: replacing a bind-mounted file (install, an
+# editor's save) would leave the container reading the old one.
+Volume=%h/.config/bot-harness:/home/agent/.config/bot-harness:ro,z
 # Network through the host (pasta), which is on the tailnet.
 PodmanArgs=--memory=16g --cpus=4 --pids-limit=8192
 NoNewPrivileges=true

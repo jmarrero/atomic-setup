@@ -22,7 +22,8 @@ answers @mentions.
   in tmux session `coordinator`, in `~/src/github/jmarrero-bot`.
 - Credentials: podman secrets `jmarrero-bot-gh-token` (`GH_TOKEN`) and
   `jmarrero-bot-claude-token` (`CLAUDE_CODE_OAUTH_TOKEN`); the operator
-  config is `~/.config/bot-harness/operator.json`, mounted read-only.
+  config is `~/.config/bot-harness/operator.json` (its directory is mounted
+  read-only, so edits show up without a restart).
 - No `keep-id`: the container's users map to subordinate ids, so an escape
   isn't your host user. Capabilities dropped, no-new-privileges, 16G/4 CPUs.
 - Network goes through the host, so devspaces on the tailnet are reachable.
