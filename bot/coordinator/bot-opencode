@@ -1,0 +1,43 @@
+#!/bin/bash
+# Run one task with opencode on a GitHub Copilot model, for the coordinator:
+# a second model family for reviews, and well-defined work. See the operator
+# notes in the coordinator skill for when to use it.
+#
+#   bot-opencode [--model PROVIDER/MODEL] [--dir DIR] [--name NAME] PROMPT
+#
+# Runs `opencode run --auto` in DIR (default: the current directory) and
+# prints its final output; the whole run is kept in
+# ~/.local/state/bot-opencode/NAME-TIMESTAMP.log. Start it with the Bash
+# tool's run_in_background, so its exit wakes the session. The login comes
+# from OPENCODE_AUTH_CONTENT (a podman secret); the model from --model or
+# BOT_OPENCODE_MODEL.
+set -euo pipefail
+
+model=${BOT_OPENCODE_MODEL:-github-copilot/gpt-6.1-sol}
+dir=$PWD
+name=task
+while [ $# -gt 1 ]; do
+    case $1 in
+        --model) model=$2; shift 2 ;;
+        --dir) dir=$2; shift 2 ;;
+        --name) name=$2; shift 2 ;;
+        --) shift; break ;;
+        -*) echo "bot-opencode: unknown option $1" >&2; exit 2 ;;
+        *) break ;;
+    esac
+done
+[ $# -eq 1 ] || { sed -n '6,7p' "$0" | sed 's/^# //' >&2; exit 2; }
+: "${OPENCODE_AUTH_CONTENT:?no Copilot login (OPENCODE_AUTH_CONTENT)}"
+[[ "$name" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bot-opencode: bad --name" >&2; exit 2; }
+
+logdir=$HOME/.local/state/bot-opencode
+mkdir -p "$logdir"
+log=$logdir/$name-$(date -u +%Y%m%dT%H%M%SZ).log
+echo "bot-opencode: $model in $dir; log $log" >&2
+cd "$dir"
+set +e
+opencode run --auto -m "$model" "$1" > >(tee "$log") 2>>"$log"
+rc=$?
+set -e
+echo "bot-opencode: exit $rc (log $log)" >&2
+exit $rc

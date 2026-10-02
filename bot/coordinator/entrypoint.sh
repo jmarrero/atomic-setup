@@ -29,8 +29,10 @@ fi
 # the model sometimes copies). Rendered again on every start, after the pull.
 goals=$HOME/.config/bot-harness/goals.md
 test -s "$goals" || goals=/usr/local/share/bot-coordinator/operator-goals.md
+notes=$HOME/.config/bot-harness/notes.md
+test -s "$notes" || notes=/usr/local/share/bot-coordinator/operator-notes.md
 rendered=$HOME/.local/share/bot-skills
-render-skills "$homegit" "$rendered" "$goals"
+render-skills "$homegit" "$rendered" "$goals" "$notes"
 ln -sfn "$rendered/skills" "$HOME/.agents/skills"
 rm -f "$HOME"/.claude/skills/*
 for skill in "$rendered"/skills/*/; do

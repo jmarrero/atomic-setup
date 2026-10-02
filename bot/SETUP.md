@@ -312,6 +312,10 @@ homegit's skills rendered for this operator, with the goals in
 `~/.config/bot-harness/goals.md`:
 
     install -m 644 bot/coordinator/operator-goals.md ~/.config/bot-harness/goals.md
+    install -m 644 bot/coordinator/operator-notes.md ~/.config/bot-harness/notes.md
+
+The notes also tell it when to hand reviews and well-defined work to
+opencode (`bot-opencode`, with the Copilot login from §5).
 
     podman build -t localhost/bot-coordinator bot/coordinator/
     mkdir -p ~/.config/containers/systemd

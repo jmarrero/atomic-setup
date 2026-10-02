@@ -8,11 +8,12 @@ copies them literally instead (it signed a comment with his Generated-by
 link), so the coordinator gets copies with this operator's values filled in.
 homegit stays as cgwalters writes it, which keeps the fork easy to update.
 
-  render-skills.py HOMEGIT DEST GOALS
+  render-skills.py HOMEGIT DEST GOALS [NOTES]
 
 writes DEST/skills/<name>/... (from dotfiles/.agents/skills), DEST/AGENTS.md
 and DEST/agents/builder.md, with values from `bot-operator --json`. GOALS is
-a Markdown file replacing cgwalters' goals and priority rules. What still
+a Markdown file replacing cgwalters' goals and priority rules; NOTES, the
+operator's own notes, is appended to the coordinator skill. What still
 names cgwalters afterwards (links to his own repositories, issues and the
 coordination channel, kept on purpose) is listed on stderr.
 """
@@ -137,6 +138,7 @@ def render(text, subs, keep_re):
 
 def main():
     homegit, dest, goals_file = sys.argv[1:4]
+    notes = open(sys.argv[4]).read() if len(sys.argv) > 4 else ""
     cfg = json.loads(subprocess.run(["bot-operator", "--json"], check=True,
                                     capture_output=True, text=True).stdout)
     goals = open(goals_file).read()
@@ -160,6 +162,9 @@ def main():
             sys.exit(f"render-skills: expected one match of {pattern[:60]!r} in {rel}, found {n}")
         open(path, "w").write(new)
 
+    if notes.strip():
+        # After rendering, so the operator's text is taken as written.
+        notes_path = os.path.join(tmp, "skills/coordinator/SKILL.md")
     leftovers = []
     for root, _, files in os.walk(tmp):
         for name in files:
@@ -172,6 +177,9 @@ def main():
                 if re.search(r"(?i)cgwalters|colin|verbum", line):
                     leftovers.append(f"{os.path.relpath(path, tmp)}:{i}: {line.strip()[:120]}")
 
+    if notes.strip():
+        with open(notes_path, "a") as f:
+            f.write("\n" + notes.strip() + "\n")
     shutil.rmtree(dest, ignore_errors=True)
     os.rename(tmp, dest)
     print(f"render-skills: rendered for {cfg['operator']['login']}/{cfg['bot']['login']}; "
