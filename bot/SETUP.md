@@ -245,8 +245,14 @@ so they run unmodified from a fork:
 6. **TODO:** review `upstream-policy/` in the fork. It starts with
    cgwalters' records, and `bot-pr promote` trusts them; only `jmarrero`
    can loosen a verdict.
-7. Not configurable yet upstream: `bot-cost`, `bot-retro` and the review
-   app still name cgwalters' setup.
+7. Our fork's `bot-cost` and `bot-retro` take their defaults from the
+   operator config too (commit 4f3a6f9 on jmarrero-forge/homegit). The
+   review app still names cgwalters' setup.
+9. The coordinator runs in its own container under systemd:
+   [`coordinator/`](coordinator/README.md). Build `localhost/bot-coordinator`,
+   link `coordinator/bot-coordinator.container` into
+   `~/.config/containers/systemd/`, start `bot-coordinator`, and attach with
+   `podman exec -it bot-coordinator tmux attach -t coordinator`.
 8. cgwalters-bot opened the private
    [cgwalters-forge/harness-coordination](https://github.com/cgwalters-forge/harness-coordination)
    repo for the two bots; jmarrero-bot can read it.

@@ -1,0 +1,12 @@
+# The bot's coordinator: a long-lived Claude Code session running homegit's
+# coordinator skill, in tmux, as the unprivileged "agent" user. See README.md.
+# Build: podman build -t localhost/bot-coordinator bot/coordinator/
+# (after building localhost/bootc-bot-agent from bot/agent.Containerfile)
+FROM localhost/bootc-bot-agent:latest
+
+COPY --chmod=755 entrypoint.sh /usr/local/bin/bot-coordinator-entrypoint
+ENV PATH=/home/agent/.local/bin:/home/agent/.cargo/bin:/usr/local/bin:/usr/bin:/bin \
+    BOT_LOGIN=jmarrero-bot \
+    HOMEGIT_URL=https://github.com/jmarrero-forge/homegit.git
+WORKDIR /home/agent
+ENTRYPOINT ["/usr/local/bin/bot-coordinator-entrypoint"]
