@@ -131,6 +131,17 @@ def parse_command(body, bot_login, commands):
     return None
 
 
+def defuse_mentions(text, login):
+    """Keep TEXT from mentioning LOGIN: a zero-width space after the "@".
+
+    botd posts as the bot account, which the coordinator's bot-notify also
+    reads; a reply that mentions the bot (the help text, or an agent quoting
+    a request) would notify it and be routed as a mention by someone else.
+    It reads the same, and copies as the name with an invisible character.
+    """
+    return re.sub(rf"@(?={re.escape(login)}(?![A-Za-z0-9-]))", "@\u200b", text, flags=re.I)
+
+
 def redact(text, secrets):
     for s in secrets:
         if s and len(s) >= 8:
@@ -474,7 +485,7 @@ class Bot:
     # ---- execution ---------------------------------------------------------
 
     def reply(self, job, text):
-        body = f"@{job.user} {text}"
+        body = f"@{job.user} {defuse_mentions(text, self.bot_login)}"
         if len(body) > MAX_COMMENT:
             body = body[:MAX_COMMENT] + "\n\n…(truncated)"
         status, _, resp = gh("POST", f"/repos/{job.repo}/issues/{job.number}/comments",

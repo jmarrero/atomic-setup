@@ -1,6 +1,6 @@
 import unittest
 
-from botd import parse_command
+from botd import defuse_mentions, parse_command
 
 BOT = "jmarrero-bot"
 COMMANDS = {"claude", "opencode", "help"}
@@ -31,6 +31,19 @@ class ParseCommandTest(unittest.TestCase):
     def test_a_command_on_a_later_line(self):
         self.assertEqual(parse("@jmarrero-bot please look at this\n@jmarrero-bot claude why?"),
                          ("claude", "why?"))
+
+
+class DefuseMentionsTest(unittest.TestCase):
+    def test_the_bot_is_never_mentioned(self):
+        out = defuse_mentions("Usage: `@jmarrero-bot <agent>`; ask @JMARRERO-BOT claude", BOT)
+        self.assertNotRegex(out, r"(?i)@jmarrero-bot")
+        self.assertEqual(out.replace("\u200b", ""), "Usage: `@jmarrero-bot <agent>`; ask @JMARRERO-BOT claude")
+        # and a defused reply is no command for botd itself
+        self.assertIsNone(parse(defuse_mentions("@jmarrero-bot claude hi", BOT)))
+
+    def test_other_logins_are_left_alone(self):
+        for text in ("@jmarrero please look", "@jmarrero-bot2 hi", "@jmarrero-bots"):
+            self.assertEqual(defuse_mentions(text, BOT), text)
 
 
 if __name__ == "__main__":
