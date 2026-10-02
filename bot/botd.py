@@ -242,7 +242,8 @@ class Bot:
         self.runner = cfg["runner"]
         self.agents = cfg.get("agents", {})
         self.bot_login = None
-        self.last_modified = None
+        # Thread id -> the updated_at it was last handled at.
+        self.seen_threads = {}
         self.auth_cache = {}
         self.user_runs = collections.defaultdict(collections.deque)
         self.inflight = 0
@@ -355,27 +356,38 @@ class Bot:
     # ---- polling -----------------------------------------------------------
 
     def poll_once(self):
-        """Process new notifications. Returns seconds to wait before the next poll."""
-        headers = {"If-Modified-Since": self.last_modified} if self.last_modified else {}
+        """Process new notifications. Returns seconds to wait before the next poll.
+
+        The bot account's notifications are shared with the coordinator,
+        whose bot-notify routes the operator's other requests and owns their
+        read state: botd never marks a notification read, and reads them all
+        (read or not) updated within max_age_minutes, so one bot-notify read
+        first isn't missed. A thread is handled again only when it changes;
+        the processed keys stop a comment from running twice.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(
+            minutes=self.cfg["github"].get("max_age_minutes", 60))
         status, h, notifications = gh(
-            "GET", "/notifications?participating=true", self.bot_token, headers=headers)
+            "GET", f"/notifications?all=true&participating=true&per_page=50&since={iso(cutoff)}",
+            self.bot_token)
         interval = max(self.cfg["github"].get("poll_min_seconds", 30),
                        int(h.get("X-Poll-Interval", 60)) if h else 60)
-        if status == 304:
-            return interval
         if status != 200:
             log.warning("GET /notifications: HTTP %s: %s", status, notifications)
             return interval
-        self.last_modified = h.get("Last-Modified")
         for n in notifications:
+            if self.seen_threads.get(n["id"]) == n["updated_at"]:
+                continue
             try:
                 self.handle_thread(n)
             except Exception:
-                # Leave it unread so it's retried next poll; processed keys stop double runs.
+                # Not recorded as seen, so it's retried next poll.
                 log.exception("failed handling notification %s", n.get("id"))
-                self.last_modified = None  # don't let a 304 hide it
                 continue
-            gh("PATCH", f"/notifications/threads/{n['id']}", self.bot_token)
+            self.seen_threads[n["id"]] = n["updated_at"]
+        # Forget threads that have aged out of the window.
+        live = {n["id"] for n in notifications}
+        self.seen_threads = {k: v for k, v in self.seen_threads.items() if k in live}
         return interval
 
     def handle_thread(self, n):
@@ -394,7 +406,7 @@ class Bot:
         status, _, issue = gh("GET", f"/repos/{repo}/issues/{number}", self.bot_token)
         if status in (403, 404):
             # Retrying won't help (e.g. a private repo the token can't read);
-            # returning lets poll_once mark the notification read.
+            # returning records the thread as seen until it changes.
             log.warning("skipping %s#%s: HTTP %s", repo, number, status)
             return
         if status != 200:

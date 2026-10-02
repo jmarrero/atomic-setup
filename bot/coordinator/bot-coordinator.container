@@ -18,6 +18,9 @@ Volume=bot-coordinator-home:/home/agent
 # The directory, not the file: replacing a bind-mounted file (install, an
 # editor's save) would leave the container reading the old one.
 Volume=%h/.config/bot-harness:/home/agent/.config/bot-harness:ro,z
+# botd answers "@BOT <command> ..." at the start of a line; bot-notify leaves
+# those to it. Keep in step with botd's agents ([agents.*]) plus help.
+Environment="BOT_NOTIFY_SKIP_COMMANDS=claude opencode help"
 # Network through the host (pasta), which is on the tailnet.
 PodmanArgs=--memory=16g --cpus=4 --pids-limit=8192
 NoNewPrivileges=true
