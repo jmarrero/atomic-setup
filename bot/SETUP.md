@@ -307,7 +307,11 @@ homegit's tools take an operator config, so they run unmodified from a fork
 ## 8. The coordinator
 
 See [coordinator/README.md](coordinator/README.md). It keeps its own homegit
-clone in its home volume, so the clone in §7 is only for checks.
+clone in its home volume, so the clone in §7 is only for checks. It uses
+homegit's skills rendered for this operator, with the goals in
+`~/.config/bot-harness/goals.md`:
+
+    install -m 644 bot/coordinator/operator-goals.md ~/.config/bot-harness/goals.md
 
     podman build -t localhost/bot-coordinator bot/coordinator/
     mkdir -p ~/.config/containers/systemd
