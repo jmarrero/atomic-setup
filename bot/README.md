@@ -100,6 +100,7 @@ host access anyway.
 - Latency is roughly 60s, because GitHub sets the notification poll interval.
 - Only issue/PR comments and issue/PR descriptions are read. Inline PR review
   comments are not.
-- Repos are cloned anonymously, so private repos (even ones trusted users
-  mention the bot in) fail to clone.
+- Repos are cloned anonymously, so in a private repo the agent has no code:
+  it answers from the thread (which botd reads with the bot's token), and
+  `THREAD.md` starts with a note saying so.
 - State (which comments were handled) is kept in `~/.local/state/bootc-bot/`.
