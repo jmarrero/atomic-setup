@@ -34,8 +34,6 @@ container, started but not yet told to run.
 
 **TODO:**
 
-- Review `upstream-policy/` in the homegit fork before letting the bot
-  promote anything ([§7](#7-homegit)).
 - After the coordinator's first real sweeps, add the board's `bot-state:`
   item ids to `operator.json` ([§7](#7-homegit)).
 - Remove jmarrero-bot's Write access on `jmarrero/atomic-setup`
@@ -286,9 +284,17 @@ homegit's tools take an operator config, so they run unmodified from a fork
            bot-watch --dry-run; bot-notify --dry-run'
 
    All passed on 2026-10-02 against the jmarrero-forge board.
-4. **TODO:** review `upstream-policy/` in the fork. It starts with
-   cgwalters' records, and `bot-pr promote` relies on them before opening any
-   upstream PR; only the operator can loosen a verdict.
+4. `upstream-policy/` in the fork holds cgwalters' per-repo contribution
+   policy records, which `bot-pr promote` checks before opening any upstream
+   PR. We use them as they are (decided 2026-10-02: we trust cgwalters'
+   review); only the operator can loosen a verdict. Checked with
+   `upstream-policy check OWNER/REPO` in the coordinator container:
+   `bootc-dev/bootc` is `bot-ok` (the bot writes code and text, with an AI
+   trailer); `ostreedev/ostree` and `coreos/rpm-ostree` are `human-text` (the
+   bot's code is fine, but the PR title and body, commit messages and
+   comments must be the operator's own: rewrite them on the fork PR, then
+   `/promote --human-text`). A record goes stale, and the gate refuses, when
+   the project's policy files change upstream.
 5. **TODO:** the coordinator's first real sweeps create the board's
    `bot-state:` items; `bot-board state-put` prints their ids, which go into
    `operator.json` as `board.state_items` (and the installed copy).
