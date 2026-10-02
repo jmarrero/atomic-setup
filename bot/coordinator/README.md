@@ -44,6 +44,11 @@ for good with `systemctl --user stop bot-coordinator`. Attach to watch or
 talk to it, and detach with Ctrl-b d. Its usage counts against the Claude
 Max subscription.
 
+The coordinator only hears of news while `bot-poll` runs in its background,
+and it sometimes stops it and doesn't start it again. The entrypoint's
+watchdog types a reminder into the session when no `bot-poll` has run for
+15 minutes (`BOT_POLL_WATCHDOG_SECS`), at most once per 30.
+
 Rebuild after changing `../agent.Containerfile` or this directory, then
 `systemctl --user restart bot-coordinator`. homegit updates need only a
 restart (or `git pull`, which bot-poll's sweeps do).

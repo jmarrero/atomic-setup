@@ -69,5 +69,27 @@ tmux new-session -d -s coordinator -x 200 -y 50 "$(printf '%q ' "${cmd[@]}")"
 log "started; attach with: podman exec -it bot-coordinator tmux attach -t coordinator"
 # As PID 1, stop cleanly on SIGTERM (systemctl stop) instead of being killed.
 trap 'log "stopping"; tmux kill-server 2>/dev/null; exit 0' TERM INT
-while tmux has-session -t coordinator 2>/dev/null; do sleep 30 & wait $!; done
+# Watchdog: the session only hears of news while bot-poll runs in its
+# background, and it sometimes stops it (to do a sweep by hand, say) and
+# doesn't start it again. If no bot-poll has run for BOT_POLL_WATCHDOG_SECS,
+# type a reminder into the session (a message typed while it works waits
+# its turn), at most once per 2x that.
+watchdog=${BOT_POLL_WATCHDOG_SECS:-900}
+missing=0 last_nudge=0
+while tmux has-session -t coordinator 2>/dev/null; do
+    sleep 30 & wait $!
+    if pgrep -f 'bot-poll --exclude-lead' >/dev/null; then
+        missing=0
+        continue
+    fi
+    missing=$((missing + 30))
+    now=$(date +%s)
+    if [ "$missing" -ge "$watchdog" ] && [ $((now - last_nudge)) -ge $((2 * watchdog)) ]; then
+        log "bot-poll hasn't run for ${missing}s; reminding the session"
+        tmux send-keys -t coordinator -l "Watchdog: bot-poll has not been running for $((missing / 60)) minutes, so news isn't reaching you. Run bot-poll --once and handle what it reports, then start bot-poll --exclude-lead '*' again with the Bash tool's run_in_background, and keep it running."
+        sleep 1
+        tmux send-keys -t coordinator Enter
+        last_nudge=$now
+    fi
+done
 log "the coordinator session ended"
