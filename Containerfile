@@ -52,7 +52,10 @@ RUN \
     solaar sg3_utils \
     # Virt stack
     libvirt-daemon-config-network libvirt-daemon-kvm qemu-kvm libguestfs-tools virt-resize \
-    genisoimage virt-install virt-manager virt-viewer virtiofsd && \
+    genisoimage virt-install virt-manager virt-viewer virtiofsd \
+    # tailnet access to the bot's ephemeral devspace runners (repo in /etc/yum.repos.d)
+    tailscale && \
+    systemctl enable tailscaled && \
     # clean up
     dnf clean all && rm -rf /tmp/wl-kmods /var/* && \
     # Rebuild initramfs with ostree, lvm, crypt modules and thunderbolt udev rule
