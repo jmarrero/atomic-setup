@@ -3,8 +3,8 @@
 See [SETUP.md](SETUP.md) for the full runbook of how this bot, its forge
 org, devspaces and credentials were set up.
 
-Comment on an issue or PR in a `bootc-dev` repo (or, for users listed in
-`trusted_user_ids`, any repo the bot account can see):
+Only jmarrero, cgwalters and cgwalters-bot can trigger it: jmarrero on any
+repo the bot account can see, the other two in `bootc-dev` repos. Comment:
 
     @<bot-account> claude investigate why bootc is not installing the container
 
@@ -20,8 +20,8 @@ GitHub @mention ──► bot account's notifications
 botd.py (systemd user service on the host)
   • "@bot <agent> <request>" must start a line (quotes ignored)
   • commenter is in trusted_user_ids (any repo), or
-    repo owner is in allowed_owners AND commenter is an org (or team) member
-    (checked via API, fail closed)
+    repo owner is in allowed_owners AND commenter is in allowed_user_ids
+    (or, if [auth].org is set, an org/team member, checked via API, fail closed)
   • per-user rate limit, queue limit, max request age
                           │
                           ▼
@@ -35,18 +35,20 @@ botd redacts known secrets and posts the reply with the bot token
 
 ## Security model
 
-- **Who can trigger it:** only `[auth].org` members (or `[auth].team`),
-  checked on every request with `BOTD_MEMBERSHIP_TOKEN` (your token, since
-  seeing private members requires membership). Redirects aren't followed, so
-  a misconfigured token can't silently fall back to public membership.
-  Non-members are ignored without a reply.
-- **Trusted users** (`[auth].trusted_user_ids`) can use the bot on any repo.
-  They're matched by numeric user id, never by login, because a login can be
-  renamed and then registered by someone else.
+- **Who can trigger it:** only the users listed by numeric id, never by
+  login, because a login can be renamed and then registered by someone else.
+  `[auth].trusted_user_ids` can use the bot on any repo, and
+  `[auth].allowed_user_ids` only in `allowed_owners` repos. Everyone else is
+  ignored without a reply.
+- **Optional org access:** setting `[auth].org` (or `team`) also allows every
+  member, checked on every request with `BOTD_MEMBERSHIP_TOKEN` (your token,
+  since seeing private members requires membership). Redirects aren't
+  followed, so a misconfigured token can't silently fall back to public
+  membership. It's off in the example.
 - **What the agent can do:** the job container gets no GitHub credentials,
   only its agent's model credential (a podman secret). The bot token, which can
   post comments, never enters it.
-- **Prompt injection is the remaining risk:** a member can ask about an issue
+- **Prompt injection is the remaining risk:** an allowed user can ask about an issue
   written by anyone, and that text reaches the agent. The prompt tells the
   agent to treat it as data, but assume that sometimes won't hold. A job can
   read its model credential, so use tokens made for the bot (revocable without
@@ -64,8 +66,8 @@ botd redacts known secrets and posts the reply with the bot token
 
 1. **Bot account:** create a GitHub machine user (e.g. `bootc-bot`). Give it a
    classic PAT with `notifications` and `public_repo`.
-2. **Membership token:** create a classic PAT on *your* account with
-   `read:org` only.
+2. **Membership token** (only if you set `[auth].org`): create a classic PAT
+   on *your* account with `read:org` only.
 3. **Image:** `podman build -t localhost/bootc-bot-agent -f bot/agent.Containerfile bot/`.
    This is a plain Fedora image, deliberately not the toolbox image: jobs
    don't need toolbox's host integration or the rpm-ostree/cosa build tree,

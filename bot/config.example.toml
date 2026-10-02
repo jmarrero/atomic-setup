@@ -9,17 +9,19 @@ poll_min_seconds = 30
 max_age_minutes = 60
 
 [auth]
-# Only members of this org may trigger the bot (checked on every request).
-org = "bootc-dev"
-# Optionally narrow it to one team in that org:
-# team = "bot-users"
-# Users allowed to trigger the bot on ANY repository, by numeric GitHub id
+# Only these users may trigger the bot, by numeric GitHub id
 # (curl https://api.github.com/users/<login> | jq .id). Ids, unlike logins,
-# can't be taken over by renaming. 1894385 = jmarrero.
+# can't be taken over by renaming.
+#
+# Users allowed on ANY repository. 1894385 = jmarrero.
 trusted_user_ids = [1894385]
-# Non-members allowed to trigger the bot, but only in allowed_owners repos.
-# 17814078 = cgwalters-bot.
-allowed_user_ids = [17814078]
+# Users allowed only in allowed_owners repos.
+# 244096 = cgwalters, 17814078 = cgwalters-bot.
+allowed_user_ids = [244096, 17814078]
+# Optionally also allow every member of an org (checked on every request with
+# BOTD_MEMBERSHIP_TOKEN), or of one team in it:
+# org = "bootc-dev"
+# team = "bot-users"
 
 [runner]
 # Built from agent.Containerfile

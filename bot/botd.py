@@ -202,9 +202,10 @@ class Bot:
         self.cfg = cfg
         self.state_path = state_path
         self.bot_token = os.environ["BOTD_GITHUB_TOKEN"]
-        self.member_token = os.environ["BOTD_MEMBERSHIP_TOKEN"]
-        self.org = cfg["auth"]["org"]
+        # Without an org, only the listed user ids may trigger the bot.
+        self.org = cfg["auth"].get("org")
         self.team = cfg["auth"].get("team")
+        self.member_token = os.environ["BOTD_MEMBERSHIP_TOKEN"] if self.org else None
         # Numeric ids, not logins: a login can be renamed and re-registered by someone else.
         self.trusted_ids = set(cfg["auth"].get("trusted_user_ids", []))
         # Non-members allowed in allowed_owners repos only (handle_thread keeps
@@ -246,12 +247,7 @@ class Bot:
 
     # ---- startup checks ----------------------------------------------------
 
-    def check(self):
-        """Verify tokens and config; raise on anything that would weaken the gate."""
-        status, _, me = gh("GET", "/user", self.bot_token)
-        if status != 200:
-            raise SystemExit(f"BOTD_GITHUB_TOKEN invalid: HTTP {status}")
-        self.bot_login = me["login"]
+    def _check_member_token(self):
         status, _, owner = gh("GET", "/user", self.member_token)
         if status != 200:
             raise SystemExit(f"BOTD_MEMBERSHIP_TOKEN invalid: HTTP {status}")
@@ -263,6 +259,15 @@ class Bot:
             raise SystemExit(
                 f"BOTD_MEMBERSHIP_TOKEN owner {owner['login']} can't read {self.org} "
                 f"membership (HTTP {status}); it needs read:org and org membership")
+
+    def check(self):
+        """Verify tokens and config; raise on anything that would weaken the gate."""
+        status, _, me = gh("GET", "/user", self.bot_token)
+        if status != 200:
+            raise SystemExit(f"BOTD_GITHUB_TOKEN invalid: HTTP {status}")
+        self.bot_login = me["login"]
+        if self.org:
+            self._check_member_token()
         if not self.agents:
             raise SystemExit("no [agents.*] configured")
         for name, agent in self.agents.items():
@@ -286,6 +291,8 @@ class Bot:
     def is_authorized(self, login, user_id):
         if user_id in self.trusted_ids or user_id in self.allowed_ids:
             return True
+        if not self.org:
+            return False
         now = time.monotonic()
         cached = self.auth_cache.get(login.lower())
         if cached and now - cached[1] < AUTH_CACHE_SECONDS:
@@ -479,7 +486,7 @@ class Bot:
         # explicit per-agent "-e NAME" (inherited from this env, never in argv).
         env = {k: os.environ[k] for k in ("PATH", "HOME", "XDG_RUNTIME_DIR", "LANG")
                if k in os.environ}
-        env_args, secrets = [], [self.bot_token, self.member_token]
+        env_args, secrets = [], [t for t in (self.bot_token, self.member_token) if t]
         mount_args, credential_secrets = credential_mounts(agent)
         secrets.extend(credential_secrets)
         podman_secret_args, podman_secrets = secret_args(agent)

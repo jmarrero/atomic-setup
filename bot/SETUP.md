@@ -49,13 +49,14 @@ manual step, in order, so the setup can be checked or redone. Steps marked
    Leave `delete_repo`, `admin:org` and everything else unchecked: the bot owns
    the forge org, so those would let a bad run delete repos or change the org.
    Changing a classic token's scopes later keeps its value.
-4. As jmarrero, create a classic token with only `read:org`. botd uses it to
-   check bootc-dev membership (private members are only visible to members).
+4. (Optional, unused now.) A classic token on jmarrero with only `read:org`,
+   as `BOTD_MEMBERSHIP_TOKEN`, is needed only if botd's `[auth].org` is set
+   to allow a whole org. It isn't: only listed users can trigger the bot.
 5. Store both on the host only:
 
        mkdir -p ~/.config/bootc-bot
        install -m 600 bot/env.example ~/.config/bootc-bot/env
-       # set BOTD_GITHUB_TOKEN (bot) and BOTD_MEMBERSHIP_TOKEN (yours)
+       # set BOTD_GITHUB_TOKEN (the bot's token)
 
 6. Give the bot container `gh` and git push access through a podman secret
    (never in the image or a `hosts.yml`):
@@ -159,9 +160,11 @@ credential they're given, so revoke and recreate it if one ever leaks.
 
        cp bot/config.example.toml ~/.config/bootc-bot/config.toml
 
-   It allows bootc-dev members in bootc-dev repos, jmarrero
-   (`trusted_user_ids`) anywhere, and cgwalters-bot (`allowed_user_ids`) in
-   bootc-dev repos only. Agents: `claude` and `opencode`.
+   Only three users can trigger it, by numeric GitHub id: jmarrero
+   (`trusted_user_ids`, any repo), and cgwalters and cgwalters-bot
+   (`allowed_user_ids`, bootc-dev repos only). No org-wide access.
+   Agents: `claude` and `opencode`.
+
 3. Check, then run it as a user service:
 
        set -a; . ~/.config/bootc-bot/env; set +a; python3 bot/botd.py --check
