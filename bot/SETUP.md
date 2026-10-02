@@ -162,7 +162,8 @@ credential they're given, so revoke and recreate it if one ever leaks.
 
    Only three users can trigger it, by numeric GitHub id: jmarrero
    (`trusted_user_ids`, any repo), and cgwalters and cgwalters-bot
-   (`allowed_user_ids`, bootc-dev repos only). No org-wide access.
+   (`allowed_user_ids`, only in bootc-dev, jmarrero-forge and cgwalters-forge
+   repos). No org-wide access.
    Agents: `claude` and `opencode`.
 
 3. Check, then run it as a user service:

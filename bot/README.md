@@ -4,7 +4,8 @@ See [SETUP.md](SETUP.md) for the full runbook of how this bot, its forge
 org, devspaces and credentials were set up.
 
 Only jmarrero, cgwalters and cgwalters-bot can trigger it: jmarrero on any
-repo the bot account can see, the other two in `bootc-dev` repos. Comment:
+repo the bot account can see, the other two in `bootc-dev`, `jmarrero-forge`
+and `cgwalters-forge` repos. Comment:
 
     @<bot-account> claude investigate why bootc is not installing the container
 

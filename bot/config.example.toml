@@ -2,7 +2,7 @@
 
 [github]
 # Only act on issues/PRs in repos owned by these orgs/users.
-allowed_owners = ["bootc-dev"]
+allowed_owners = ["bootc-dev", "jmarrero-forge", "cgwalters-forge"]
 # GitHub's X-Poll-Interval (usually 60s) wins if it is larger.
 poll_min_seconds = 30
 # Ignore requests older than this (e.g. after the machine was off for a while).
