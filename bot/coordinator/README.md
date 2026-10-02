@@ -15,9 +15,10 @@ answers @mentions.
   `~/src/github/jmarrero-bot` (homegit included), Claude's sessions, caches
   and bot-devspace's keys survive restarts.
 - On each start the entrypoint pulls homegit (`jmarrero-forge/homegit`),
-  links its `bin/` into `~/.local/bin`, its skills into `~/.agents/skills` and
-  `~/.claude/skills`, its `AGENTS.md` as `~/.claude/CLAUDE.md` and the
-  `builder` subagent, rebuilds `bot-poll` if `crates/` changed, checks the
+  links its `bin/` into `~/.local/bin`, renders its skills, `AGENTS.md` and
+  `builder` subagent for this operator (see below) and installs those as
+  `~/.agents/skills`, `~/.claude/skills`, `~/.claude/CLAUDE.md` and
+  `~/.claude/agents/builder.md`, rebuilds `bot-poll` if `crates/` changed, checks the
   operator config and `gh`, then starts `claude --dangerously-skip-permissions`
   in tmux session `coordinator`, in `~/src/github/jmarrero-bot`.
 - Credentials: podman secrets `jmarrero-bot-gh-token` (`GH_TOKEN`) and
@@ -27,6 +28,22 @@ answers @mentions.
 - No `keep-id`: the container's users map to subordinate ids, so an escape
   isn't your host user. Capabilities dropped, no-new-privileges, 16G/4 CPUs.
 - Network goes through the host, so devspaces on the tailnet are reachable.
+
+## Rendered skills and goals
+
+homegit's skills are written for cgwalters' setup and spell out his logins,
+forge org, tracker, board, identities, paths and goals; the model sometimes
+copies those literally (it once signed a comment with his `Generated-by`
+link). `render-skills.py` makes copies with this operator's values from
+`bot-operator --json`, keeping only what really is his (his repositories,
+issues and gists, his review app, the coordination channel), turns his side
+of the coordination channel around, and replaces his goals and priority
+rules with `~/.config/bot-harness/goals.md` (default:
+[`operator-goals.md`](operator-goals.md)). Edit that file and restart the
+coordinator to change the bot's priorities. homegit itself stays as he
+writes it, so the fork is easy to update. If a homegit change moves a
+section the renderer replaces, it stops with an error rather than render
+his goals as yours; `bot/test_render.py` checks the result.
 
 ## Use
 

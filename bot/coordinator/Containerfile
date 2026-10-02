@@ -5,6 +5,8 @@
 FROM localhost/bootc-bot-agent:latest
 
 COPY --chmod=755 entrypoint.sh /usr/local/bin/bot-coordinator-entrypoint
+COPY --chmod=755 render-skills.py /usr/local/bin/render-skills
+COPY operator-goals.md /usr/local/share/bot-coordinator/operator-goals.md
 ENV PATH=/home/agent/.local/bin:/home/agent/.cargo/bin:/usr/local/bin:/usr/bin:/bin \
     BOT_LOGIN=jmarrero-bot \
     HOMEGIT_URL=https://github.com/jmarrero-forge/homegit.git

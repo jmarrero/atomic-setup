@@ -21,15 +21,23 @@ else
     git -C "$homegit" pull --quiet --ff-only || log "warning: homegit pull failed; using what's there"
 fi
 
-# The tools and skills, as docs/bootstrap.md says: bin/ as symlinks, the
-# skills by hand, never homegit's dotfiles (cgwalters' .bashrc, .gitconfig).
+# The tools, as docs/bootstrap.md says: bin/ as symlinks, never homegit's
+# dotfiles (cgwalters' .bashrc, .gitconfig).
 (cd "$homegit" && ./install-bin.sh)
-ln -sfn "$homegit/dotfiles/.agents/skills" "$HOME/.agents/skills"
-for skill in "$homegit"/dotfiles/.agents/skills/*/; do
+# The skills, AGENTS.md and the builder subagent, rendered for this operator
+# (render-skills: homegit's text spells out cgwalters' names and goals, which
+# the model sometimes copies). Rendered again on every start, after the pull.
+goals=$HOME/.config/bot-harness/goals.md
+test -s "$goals" || goals=/usr/local/share/bot-coordinator/operator-goals.md
+rendered=$HOME/.local/share/bot-skills
+render-skills "$homegit" "$rendered" "$goals"
+ln -sfn "$rendered/skills" "$HOME/.agents/skills"
+rm -f "$HOME"/.claude/skills/*
+for skill in "$rendered"/skills/*/; do
     ln -sfn "$skill" "$HOME/.claude/skills/$(basename "$skill")"
 done
-ln -sfn "$homegit/dotfiles/.config/AGENTS.md" "$HOME/.claude/CLAUDE.md"
-ln -sfn "$homegit/dotfiles/.claude/agents/builder.md" "$HOME/.claude/agents/builder.md"
+ln -sfn "$rendered/AGENTS.md" "$HOME/.claude/CLAUDE.md"
+ln -sfn "$rendered/agents/builder.md" "$HOME/.claude/agents/builder.md"
 # homegit's settings, plus accepting --dangerously-skip-permissions' warning
 # screen, which would otherwise wait for someone to attach and confirm it.
 python3 - "$homegit/dotfiles/.claude/settings.json" "$HOME/.claude/settings.json" <<'EOF'
