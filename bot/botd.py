@@ -337,6 +337,11 @@ class Bot:
             minutes=self.cfg["github"].get("max_age_minutes", 60))
 
         status, _, issue = gh("GET", f"/repos/{repo}/issues/{number}", self.bot_token)
+        if status in (403, 404):
+            # Retrying won't help (e.g. a private repo the token can't read);
+            # returning lets poll_once mark the notification read.
+            log.warning("skipping %s#%s: HTTP %s", repo, number, status)
+            return
         if status != 200:
             raise RuntimeError(f"GET issue {repo}#{number}: HTTP {status}")
         candidates = [(f"i{issue['id']}", issue["user"], issue.get("body") or "",

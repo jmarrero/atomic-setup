@@ -26,11 +26,14 @@ BOARD = "Workstream"
 FORKS = ["ostreedev/ostree", "coreos/rpm-ostree", "bootc-dev/bootc"]
 COMMITTER = {"name": "Joseph Marrero", "email": "jmarrero+bot@gmail.com"}
 
+# Field names and options must match what homegit's bin/ tools expect
+# (see cgwalters-forge/harness-coordination's README).
 STATUSES = [  # (name, color, description)
     ("Todo", "GRAY", "Ready for the bot to pick up; a human puts items here"),
+    ("In Progress", "YELLOW", "Claimed by a bot worker"),
     ("Draft", "BLUE", "Tested branch proposed as a draft PR in a forge fork"),
-    ("In Review", "PURPLE", "Promoted: the upstream PR is open"),
     ("Needs human", "ORANGE", "Blocked on a decision or answer from a human"),
+    ("In Review", "PURPLE", "Promoted: the upstream PR is open"),
     ("Done", "GREEN", "Accepted upstream (only a human's acceptance counts)"),
 ]
 PRIORITIES = [
@@ -38,6 +41,14 @@ PRIORITIES = [
     ("P1", "ORANGE", "Next up"),
     ("P2", "GRAY", "When there is time"),
 ]
+WORKFLOWS = [
+    ("branch", "BLUE", "Ends in a tested branch and a forge draft PR"),
+    ("analysis", "GRAY", "Ends in a secret gist, no code"),
+    ("pr", "PURPLE", "May open the upstream PR directly; only a human sets this"),
+    ("manual", "ORANGE", "Done by a human"),
+]
+ORGS = [(o, "GRAY", "") for o in sorted({u.split("/")[0] for u in FORKS})] + [("other", "GRAY", "")]
+TEXT_FIELDS = ["Why", "Branch", "Gist"]
 LABELS = [  # (name, color, description)
     ("question", "D876E3", f"A question for @{HUMAN}; answer with an option letter"),
     ("review", "0E8A16", f"A forge PR waiting for @{HUMAN}'s review"),
@@ -209,7 +220,8 @@ def ensure_board():
 
     # Every board has a built-in Status field; replace its options with ours
     # (only while they differ, so a re-run doesn't reset items' statuses).
-    for name, spec in (("Status", STATUSES), ("Priority", PRIORITIES)):
+    for name, spec in (("Status", STATUSES), ("Priority", PRIORITIES),
+                       ("Workflow", WORKFLOWS), ("Org", ORGS)):
         field = by_name.get(name)
         want = [n for n, _, _ in spec]
         if field and [o["name"] for o in field["options"]] == want:
@@ -228,6 +240,18 @@ def ensure_board():
                 projectV2Field { ... on ProjectV2SingleSelectField { id } } } }""",
                     p=project["id"], name=name, opts=options(spec))
             print(f"board field {name}: created with {', '.join(want)}")
+
+    all_names = {f["name"] for f in graphql("""query($id: ID!) { node(id: $id) {
+        ... on ProjectV2 { fields(first: 50) { nodes { ... on ProjectV2FieldCommon { name } } } } } }""",
+        id=project["id"])["node"]["fields"]["nodes"] if f}
+    for name in TEXT_FIELDS:
+        if name in all_names:
+            print(f"board field {name}: exists")
+            continue
+        graphql("""mutation($p: ID!, $name: String!) { createProjectV2Field(input: {
+            projectId: $p, dataType: TEXT, name: $name}) { projectV2Field {
+            ... on ProjectV2Field { id } } } }""", p=project["id"], name=name)
+        print(f"board field {name}: created (text)")
 
     repo = graphql("""query($org: String!) { repository(owner: $org, name: "tracker") { id } }""",
                    org=ORG)["repository"]
