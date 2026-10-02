@@ -131,7 +131,7 @@ runner group, reachable over a tailnet; see
      tailnet). Renew it before then, or afterwards, with
      `sudo tailscale up --force-reauth --advertise-tags=tag:bot-host` and the
      printed login URL, logged in as jmarrero-bot.
-   - **TODO:** Settings → Trust credentials → OpenID Connect: issuer GitHub Actions
+   - Settings → Trust credentials → OpenID Connect (done): issuer GitHub Actions
      (`https://token.actions.githubusercontent.com`), subject
      `repo:bootc-dev@202312630/jmarrero-devspace-sandbox@1400847798:ref:refs/heads/main`,
      scope Keys → Auth Keys: Write, tag `tag:jmarrero-devspace`. The repo uses
@@ -140,9 +140,17 @@ runner group, reachable over a tailnet; see
      so a repo re-created under the same name can't use the credential. Only
      runs from `main` are accepted, so a pushed branch with a modified
      workflow can't get a key.
-   - Set its Client ID and Audience as repo variables `TS_OAUTH_CLIENT_ID`
-     and `TS_AUDIENCE` on the devspace repo, then test a 30-minute 4-core
-     devspace.
+   - Its Client ID and Audience are the devspace repo's Actions variables
+     `TS_OAUTH_CLIENT_ID` and `TS_AUDIENCE` (done; they aren't secrets).
+   - Tested on 2026-10-02 with a 30-minute 4-core devspace: it joined the
+     tailnet in about 40s as a tagged device, trashcan and the bot container
+     (with `--userns=keep-id:uid=2000,gid=2000` so the key is readable) could
+     SSH in as `runner`, and the devspace could not reach trashcan. Cancelling
+     the run removes it from the tailnet.
+   - The workflow installs no build toolchain (no podman or cargo; it has
+     KVM, just and the agent CLIs). homegit's `bot-devspace provision`
+     installs the toolchain over SSH, so use it (or an equivalent) after
+     starting a devspace.
 
 ## 5. Model credentials
 
