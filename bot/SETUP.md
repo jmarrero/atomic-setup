@@ -124,9 +124,14 @@ runner group, reachable over a tailnet; see
      Job containers share trashcan's network, so whatever trashcan can reach,
      they can too. To copy it from the machine with your browser:
      `ssh trashcan cat tailscale-policy.hujson | wl-copy`.
-   - Tag trashcan: `sudo tailscale up --advertise-tags=tag:bot-host` (this
-     also turns off key expiry).
-   - Settings → Trust credentials → OpenID Connect: issuer GitHub Actions
+   - Tag trashcan: `sudo tailscale up --advertise-tags=tag:bot-host` (done).
+   - Key expiry is deliberately left on, so the machine gets looked at every
+     few months. trashcan's key expires on **2027-03-31**; after that only
+     devspace access breaks (botd, GitHub and the models don't use the
+     tailnet). Renew it before then, or afterwards, with
+     `sudo tailscale up --force-reauth --advertise-tags=tag:bot-host` and the
+     printed login URL, logged in as jmarrero-bot.
+   - **TODO:** Settings → Trust credentials → OpenID Connect: issuer GitHub Actions
      (`https://token.actions.githubusercontent.com`), subject
      `repo:bootc-dev/jmarrero-devspace-sandbox:ref:refs/heads/main` (only
      runs from `main`, so a pushed branch with a modified workflow can't get a
