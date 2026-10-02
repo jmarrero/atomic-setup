@@ -27,7 +27,10 @@ NoNewPrivileges=true
 DropCapability=all
 # Its first message, so it starts working on every start (boot, restart)
 # without anyone attaching; comment out to have it wait for you instead.
-Environment="COORDINATOR_PROMPT=Load the coordinator skill and run the bot."
+# bot-poll only wakes the session if Claude Code itself runs it in the
+# background (its Bash tool's run_in_background); a `&` inside a command
+# runs it untracked, and its exit on news then wakes nothing.
+Environment="COORDINATOR_PROMPT=Load the coordinator skill and run the bot. Start bot-poll with your Bash tool's run_in_background option, never with & or nohup inside a command: only a background task the tool started wakes you when it exits."
 
 [Service]
 # Always: ending the Claude session (/exit, or by accident) is a clean exit,
