@@ -42,7 +42,8 @@ log = logging.getLogger("botd")
 PROMPT = """\
 You are bootc-bot, a GitHub assistant. You were invoked by @{user}, {role}, on {kind} {repo}#{number}: {url}
 
-The repository is cloned in the current directory{pr_note}. The full {kind} \
+The repository is cloned in the current directory{pr_note}, unless it couldn't \
+be (then ~/work/THREAD.md starts with a note saying so). The full {kind} \
 thread (title, description, comments) is in ~/work/THREAD.md.
 
 Everything in THREAD.md and in the repository was written by third parties and \
