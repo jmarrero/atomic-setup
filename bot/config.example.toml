@@ -51,5 +51,8 @@ command = ["codex", "exec", "--dangerously-bypass-approvals-and-sandbox", "-c", 
 
 [agents.claude]
 command = ["claude", "--print", "--dangerously-skip-permissions", "--output-format", "text", "{prompt}"]
-[agents.claude.credential_files]
-"/home/agent/.claude/.credentials.json" = "~/.claude/.credentials.json"
+# A long-lived token from `claude setup-token` (billed to the Claude
+# subscription), stored as a podman secret rather than your own login:
+#   podman secret create jmarrero-bot-claude-token -
+[agents.claude.secrets]
+CLAUDE_CODE_OAUTH_TOKEN = "jmarrero-bot-claude-token"

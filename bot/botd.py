@@ -163,6 +163,26 @@ def credential_mounts(agent):
     return args, secrets
 
 
+def secret_args(agent):
+    """Pass podman secrets as env vars: {"ENV_NAME": "podman-secret-name"}.
+
+    Returns the --secret args plus the secret values, which are only read so
+    that replies and logs can be redacted.
+    """
+    args, secrets = [], []
+    for env_name, secret in agent.get("secrets", {}).items():
+        if not re.fullmatch(r"[A-Z_][A-Z0-9_]*", env_name) or not re.fullmatch(r"[\w.-]+", secret):
+            raise ValueError(f"invalid secret mapping {env_name} = {secret}")
+        p = subprocess.run(["podman", "secret", "inspect", "--showsecret",
+                            "--format", "{{.SecretData}}", secret],
+                           capture_output=True, text=True)
+        if p.returncode != 0 or not p.stdout.strip():
+            raise ValueError(f"podman secret {secret} is missing")
+        secrets.append(p.stdout.strip())
+        args += ["--secret", f"{secret},type=env,target={env_name}"]
+    return args, secrets
+
+
 @dataclass
 class Job:
     key: str          # unique id: "c<comment id>" or "i<issue id>"
@@ -250,6 +270,7 @@ class Bot:
                 raise SystemExit(f"agents.{name}.command has no \"{{prompt}}\" element")
             try:
                 credential_mounts(agent)
+                secret_args(agent)
             except (OSError, ValueError) as e:
                 raise SystemExit(f"agents.{name}: cannot load credential files ({type(e).__name__})") from None
         if not os.path.exists(BOT_RUN):
@@ -461,6 +482,8 @@ class Bot:
         env_args, secrets = [], [self.bot_token, self.member_token]
         mount_args, credential_secrets = credential_mounts(agent)
         secrets.extend(credential_secrets)
+        podman_secret_args, podman_secrets = secret_args(agent)
+        secrets.extend(podman_secrets)
         for spec in agent.get("env", []):
             inner, _, outer = spec.partition("=")
             value = os.environ.get(outer or inner)
@@ -490,6 +513,7 @@ class Bot:
                    "-e", f"BOT_IS_PR={int(job.is_pr)}",
                    *env_args,
                    *mount_args,
+                   *podman_secret_args,
                    self.runner["image"], "bash", "/bot/context/bot-run.sh", *argv]
             timeout = self.runner.get("timeout_minutes", 30) * 60
             try:
