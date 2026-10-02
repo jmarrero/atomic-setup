@@ -133,9 +133,13 @@ runner group, reachable over a tailnet; see
      printed login URL, logged in as jmarrero-bot.
    - **TODO:** Settings → Trust credentials → OpenID Connect: issuer GitHub Actions
      (`https://token.actions.githubusercontent.com`), subject
-     `repo:bootc-dev/jmarrero-devspace-sandbox:ref:refs/heads/main` (only
-     runs from `main`, so a pushed branch with a modified workflow can't get a
-     key), scope Keys → Auth Keys: Write, tag `tag:jmarrero-devspace`.
+     `repo:bootc-dev@202312630/jmarrero-devspace-sandbox@1400847798:ref:refs/heads/main`,
+     scope Keys → Auth Keys: Write, tag `tag:jmarrero-devspace`. The repo uses
+     GitHub's immutable subjects, which include the org and repo ids (see
+     `gh api repos/bootc-dev/jmarrero-devspace-sandbox/actions/oidc/customization/sub`),
+     so a repo re-created under the same name can't use the credential. Only
+     runs from `main` are accepted, so a pushed branch with a modified
+     workflow can't get a key.
    - Set its Client ID and Audience as repo variables `TS_OAUTH_CLIENT_ID`
      and `TS_AUDIENCE` on the devspace repo, then test a 30-minute 4-core
      devspace.
