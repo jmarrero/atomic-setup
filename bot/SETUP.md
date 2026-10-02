@@ -32,10 +32,8 @@ org, tracker, board and forks; homegit's tools under the operator config
 (read-only checks pass); devspaces over the tailnet; the coordinator
 container, started but not yet told to run.
 
-**TODO:**
-
-- Remove jmarrero-bot's Write access on `jmarrero/atomic-setup`
-  ([§9](#9-security-notes)).
+Nothing is left to set up. The bot's Write access to `jmarrero/atomic-setup`,
+used while setting this up, was removed on 2026-10-02 ([§9](#9-security-notes)).
 
 ## Setting this up for someone else
 
@@ -330,7 +328,9 @@ Then tell it "Load the coordinator skill and run the bot."
   nothing else; devspaces can't reach the bot machine.
 - **This repo builds the bot machine's OS image**, so whoever can push to it
   can change what the machine runs after its next `bootc upgrade` (automatic
-  updates are off). **TODO:** remove the bot's temporary Write access: this
-  repo → Settings → Collaborators.
+  updates are off). The bot has no write access to it: agents on the bot
+  machine can commit here, but the operator reviews and pushes those
+  commits from his own machine (e.g. `git pull trashcan:<path> main` there,
+  then push). Don't give the bot write access again.
 - CI uses least-privilege `permissions` and actions pinned to commit SHAs;
   `.containerignore` keeps `bot/` and the rest out of the OS image.
