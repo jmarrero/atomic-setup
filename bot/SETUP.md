@@ -49,9 +49,10 @@ manual step, in order, so the setup can be checked or redone. Steps marked
    Leave `delete_repo`, `admin:org` and everything else unchecked: the bot owns
    the forge org, so those would let a bad run delete repos or change the org.
    Changing a classic token's scopes later keeps its value.
-4. (Optional, unused now.) A classic token on jmarrero with only `read:org`,
-   as `BOTD_MEMBERSHIP_TOKEN`, is needed only if botd's `[auth].org` is set
-   to allow a whole org. It isn't: only listed users can trigger the bot.
+4. (Not used.) botd's optional org-wide access (`[auth].org`) needs a
+   classic `read:org` token from a member of that org as
+   `BOTD_MEMBERSHIP_TOKEN`. It's off, since only listed users can trigger the
+   bot, and the old token was revoked on 2026-10-01.
 5. Store both on the host only:
 
        mkdir -p ~/.config/bootc-bot
@@ -100,8 +101,8 @@ runner group, reachable over a tailnet; see
 1. As jmarrero (a bootc-dev admin), create the **public, empty** repo
    `bootc-dev/jmarrero-devspace-sandbox`. A repo can't be forked into the org
    that owns it, so it's a copy with history instead.
-2. Add jmarrero-bot to it as a collaborator. It currently has Admin;
-   **TODO:** lower it to Write, which is enough to dispatch and push.
+2. Add jmarrero-bot to it as a collaborator with **Write**, which is enough
+   to dispatch runs and push.
 3. Push Colin's history and the adaptation (done; the clone is
    `~/development/github/bootc-dev/jmarrero-devspace-sandbox`, where
    `upstream` is Colin's repo, so `git fetch upstream && git merge
