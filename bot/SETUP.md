@@ -250,7 +250,12 @@ security model.
        journalctl --user -u bootc-bot -f
 
 Trigger it with `@jmarrero-bot claude <request>` or
-`@jmarrero-bot opencode <request>` at the start of a comment line.
+`@jmarrero-bot opencode <request>` at the start of a comment line. Any other
+mention of the bot by the operator goes to the coordinator instead, as work
+on the board; the two share the bot's notifications without stepping on each
+other ([README.md](README.md#botd-and-the-coordinator)). When you add or
+rename a botd agent, update `BOT_NOTIFY_SKIP_COMMANDS` in
+`coordinator/bot-coordinator.container` to match.
 
 ## 7. homegit
 
