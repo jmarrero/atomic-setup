@@ -117,16 +117,18 @@ def iso(dt):
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def parse_command(body, bot_login):
-    """Find "@bot <agent> <request...>" at the start of a line.
+def parse_command(body, bot_login, commands):
+    """Find "@bot <command> <request...>" at the start of a line.
 
     Requiring line start ignores quoted replies ("> @bot ...") and inline
-    mentions. Returns (agent, request) or None.
+    mentions. Only a word in COMMANDS (botd's agents and "help") counts: any
+    other "@bot ..." is a request for the coordinator, not botd's to answer.
+    Returns (command, request) for the first such line, or None.
     """
-    m = re.search(rf"(?im)^[ \t]*@{re.escape(bot_login)}[ \t]+([a-z0-9_-]+)\b[ \t]*", body)
-    if not m:
-        return None
-    return m.group(1).lower(), body[m.end():].strip()
+    for m in re.finditer(rf"(?im)^[ \t]*@{re.escape(bot_login)}[ \t]+([a-z0-9_-]+)\b[ \t]*", body):
+        if m.group(1).lower() in commands:
+            return m.group(1).lower(), body[m.end():].strip()
+    return None
 
 
 def redact(text, secrets):
@@ -429,7 +431,7 @@ class Bot:
                 continue
             if not owner_allowed and user["id"] not in self.trusted_ids:
                 continue
-            cmd = parse_command(body, self.bot_login)
+            cmd = parse_command(body, self.bot_login, set(self.agents) | {"help"})
             if not cmd:
                 continue
             self._mark_processed(key)
@@ -444,9 +446,8 @@ class Bot:
             log.warning("DENIED %s -> %s on %s", job.user, job.agent, job.url)
             return
         log.info("request %s: @%s %s on %s", job.key, job.user, job.agent, job.url)
-        if job.agent == "help" or job.agent not in self.agents:
-            prefix = "" if job.agent == "help" else f"Unknown agent `{job.agent}`. "
-            self.reply(job, f"{prefix}Usage: `@{self.bot_login} <agent> <request>`; "
+        if job.agent == "help":
+            self.reply(job, f"Usage: `@{self.bot_login} <agent> <request>`; "
                             f"agents: {', '.join(f'`{a}`' for a in sorted(self.agents))}")
             return
         if not job.request:

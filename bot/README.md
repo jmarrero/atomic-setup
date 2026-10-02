@@ -16,8 +16,9 @@ the bot posts its answer as a reply. `@<bot-account> help` lists agents.
 
 Both read the bot account's notifications. A line that *starts* with
 `@<bot-account> claude …`, `opencode …` or `help` is botd's: it answers with
-a comment. Any other mention by the operator is the coordinator's
-(homegit's `bot-notify`): it becomes work on the board. So:
+a comment. Any other mention by the operator, including `@<bot-account> <any
+other word> …`, is the coordinator's (homegit's `bot-notify`): it becomes
+work on the board, and botd stays silent. So:
 
 - botd never marks a notification read (the read state is bot-notify's), and
   reads them read or not, so it doesn't miss a command bot-notify saw first.

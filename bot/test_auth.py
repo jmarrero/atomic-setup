@@ -9,7 +9,7 @@ CFG = {
     "github": {"allowed_owners": ["bootc-dev"]},
     "auth": {"trusted_user_ids": [1], "allowed_user_ids": [2]},
     "runner": {},
-    "agents": {},
+    "agents": {"claude": {"command": ["claude", "{prompt}"]}},
 }
 
 
