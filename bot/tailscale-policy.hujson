@@ -1,0 +1,19 @@
+// Access policy for the bot's tailnet (jmarrero-bot.github). Paste the whole
+// file into the Tailscale admin console under Access controls, replacing the
+// default allow-all policy.
+{
+	"tagOwners": {
+		"tag:bot-host":          ["autogroup:admin"],
+		"tag:jmarrero-devspace": ["autogroup:admin"],
+	},
+	"grants": [
+		// The bot host may SSH to devspaces. Nothing else is allowed, and in
+		// particular nothing from a devspace to the bot host.
+		{"src": ["tag:bot-host"], "dst": ["tag:jmarrero-devspace"], "ip": ["tcp:22"]},
+	],
+	// Tailscale refuses to save a policy that breaks these.
+	"tests": [
+		{"src": "tag:bot-host", "accept": ["tag:jmarrero-devspace:22"], "deny": ["tag:jmarrero-devspace:80"]},
+		{"src": "tag:jmarrero-devspace", "deny": ["tag:bot-host:22"]},
+	],
+}

@@ -113,18 +113,27 @@ runner group, reachable over a tailnet; see
 4. Runner access: bootc-dev → Settings → Actions → Runner groups → `rhel10`
    is set to **all repositories** (with public repositories allowed), so
    nothing was needed.
-5. **TODO:** set up your own tailnet:
-   - Replace the default allow-all policy. Add
-     `"tag:jmarrero-devspace": ["autogroup:admin"]` to `tagOwners`, allow only
-     `trashcan` → `tag:jmarrero-devspace:22`, and allow nothing from the tag
-     to `trashcan`. Job containers share the host's network, so whatever
-     `trashcan` can reach, they can too.
-   - Create a trust credential (workload identity federation) for GitHub
-     Actions: issuer `https://token.actions.githubusercontent.com`, subject
-     `repo:bootc-dev/jmarrero-devspace-sandbox:*`, scope `auth_keys` (write),
-     tag `tag:jmarrero-devspace`.
-   - Set repo variables `TS_OAUTH_CLIENT_ID` and `TS_AUDIENCE` on the
-     devspace repo, then test a 30-minute 4-core devspace.
+5. The tailnet is `jmarrero-bot.github` (`sudo tailscale up` on trashcan
+   logged in as jmarrero-bot via GitHub), with MagicDNS on. It holds only
+   trashcan and the devspaces. **TODO** (logged in to Tailscale as
+   jmarrero-bot):
+   - Access controls: replace the default allow-all policy with
+     [`tailscale-policy.hujson`](tailscale-policy.hujson). It lets
+     `tag:bot-host` reach `tag:jmarrero-devspace` on TCP 22 and nothing else,
+     and its tests reject any later edit that lets a devspace reach the host.
+     Job containers share trashcan's network, so whatever trashcan can reach,
+     they can too. To copy it from the machine with your browser:
+     `ssh trashcan cat tailscale-policy.hujson | wl-copy`.
+   - Tag trashcan: `sudo tailscale up --advertise-tags=tag:bot-host` (this
+     also turns off key expiry).
+   - Settings → Trust credentials → OpenID Connect: issuer GitHub Actions
+     (`https://token.actions.githubusercontent.com`), subject
+     `repo:bootc-dev/jmarrero-devspace-sandbox:ref:refs/heads/main` (only
+     runs from `main`, so a pushed branch with a modified workflow can't get a
+     key), scope Keys → Auth Keys: Write, tag `tag:jmarrero-devspace`.
+   - Set its Client ID and Audience as repo variables `TS_OAUTH_CLIENT_ID`
+     and `TS_AUDIENCE` on the devspace repo, then test a 30-minute 4-core
+     devspace.
 
 ## 5. Model credentials
 
