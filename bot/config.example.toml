@@ -1,0 +1,55 @@
+# Copy to ~/.config/bootc-bot/config.toml
+
+[github]
+# Only act on issues/PRs in repos owned by these orgs/users.
+allowed_owners = ["bootc-dev"]
+# GitHub's X-Poll-Interval (usually 60s) wins if it is larger.
+poll_min_seconds = 30
+# Ignore requests older than this (e.g. after the machine was off for a while).
+max_age_minutes = 60
+
+[auth]
+# Only members of this org may trigger the bot (checked on every request).
+org = "bootc-dev"
+# Optionally narrow it to one team in that org:
+# team = "bot-users"
+# Users allowed to trigger the bot on ANY repository, by numeric GitHub id
+# (curl https://api.github.com/users/<login> | jq .id). Ids, unlike logins,
+# can't be taken over by renaming. 1894385 = jmarrero.
+trusted_user_ids = [1894385]
+# Non-members allowed to trigger the bot, but only in allowed_owners repos.
+# 17814078 = cgwalters-bot.
+allowed_user_ids = [17814078]
+
+[runner]
+# Built from agent.Containerfile
+image = "localhost/bootc-bot-agent:latest"
+timeout_minutes = 30
+max_concurrent = 2
+max_queued = 6
+max_runs_per_user_per_hour = 6
+memory = "8g"
+cpus = "4"
+
+# Agents: each is invoked as "@<bot> <name> <request>" and needs a section like
+#
+#   [agents.<name>]
+#   command = ["<cli>", ..., "{prompt}", ...]
+#   env = ["API_KEY_VAR"]
+#
+# "{prompt}" is replaced by the full prompt as a single argv element (no shell).
+# "env" lists variables passed into the job container: "NAME" passes NAME from
+# botd's environment, "INNER=OUTER" passes botd's OUTER as INNER.
+# If an agent writes /bot/out/reply.md, that file is posted; otherwise stdout.
+
+# Reuse local CLI logins. Each job receives only its agent's login file.
+# These files are mounted read-only; refresh expired logins on the host.
+[agents.codex]
+command = ["codex", "exec", "--dangerously-bypass-approvals-and-sandbox", "-c", 'cli_auth_credentials_store="file"', "--output-last-message", "/bot/out/reply.md", "{prompt}"]
+[agents.codex.credential_files]
+"/home/agent/.codex/auth.json" = "~/.codex/auth.json"
+
+[agents.claude]
+command = ["claude", "--print", "--dangerously-skip-permissions", "--output-format", "text", "{prompt}"]
+[agents.claude.credential_files]
+"/home/agent/.claude/.credentials.json" = "~/.claude/.credentials.json"
