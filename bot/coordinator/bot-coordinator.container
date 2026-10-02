@@ -25,11 +25,14 @@ Environment="BOT_NOTIFY_SKIP_COMMANDS=claude opencode help"
 PodmanArgs=--memory=16g --cpus=4 --pids-limit=8192
 NoNewPrivileges=true
 DropCapability=all
-# Uncomment to have it start working on its own after each start:
-#Environment=COORDINATOR_PROMPT=Load the coordinator skill and run the bot.
+# Its first message, so it starts working on every start (boot, restart)
+# without anyone attaching; comment out to have it wait for you instead.
+Environment="COORDINATOR_PROMPT=Load the coordinator skill and run the bot."
 
 [Service]
-Restart=on-failure
+# Always: ending the Claude session (/exit, or by accident) is a clean exit,
+# which on-failure wouldn't restart. Stop it with systemctl --user stop.
+Restart=always
 RestartSec=60
 TimeoutStartSec=900
 

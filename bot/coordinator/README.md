@@ -36,9 +36,13 @@ answers @mentions.
 
     podman exec -it bot-coordinator tmux attach -t coordinator   # Ctrl-b d to detach
 
-Then tell it, for example, "Load the coordinator skill and run the bot." To
-have it start on its own after every restart, set `COORDINATOR_PROMPT` in
-the `.container` file. Its usage counts against the Claude Max subscription.
+It starts at boot and starts working on its own: `COORDINATOR_PROMPT` in the
+`.container` file is its first message ("Load the coordinator skill and run
+the bot."); comment it out to have it wait for you. If the Claude session
+ends (`/exit`, or by accident), systemd restarts it after 60 seconds; stop it
+for good with `systemctl --user stop bot-coordinator`. Attach to watch or
+talk to it, and detach with Ctrl-b d. Its usage counts against the Claude
+Max subscription.
 
 Rebuild after changing `../agent.Containerfile` or this directory, then
 `systemctl --user restart bot-coordinator`. homegit updates need only a

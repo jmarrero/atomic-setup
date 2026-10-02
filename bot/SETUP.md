@@ -315,7 +315,9 @@ clone in its home volume, so the clone in §7 is only for checks.
     systemctl --user daemon-reload && systemctl --user start bot-coordinator
     podman exec -it bot-coordinator tmux attach -t coordinator   # Ctrl-b d detaches
 
-Then tell it "Load the coordinator skill and run the bot."
+It starts at boot and starts working on its own (`COORDINATOR_PROMPT`), and
+systemd restarts it if the session ends; `systemctl --user stop
+bot-coordinator` stops it.
 
 ## 9. Security notes
 

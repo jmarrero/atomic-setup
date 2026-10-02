@@ -30,7 +30,14 @@ for skill in "$homegit"/dotfiles/.agents/skills/*/; do
 done
 ln -sfn "$homegit/dotfiles/.config/AGENTS.md" "$HOME/.claude/CLAUDE.md"
 ln -sfn "$homegit/dotfiles/.claude/agents/builder.md" "$HOME/.claude/agents/builder.md"
-cp "$homegit/dotfiles/.claude/settings.json" "$HOME/.claude/settings.json"
+# homegit's settings, plus accepting --dangerously-skip-permissions' warning
+# screen, which would otherwise wait for someone to attach and confirm it.
+python3 - "$homegit/dotfiles/.claude/settings.json" "$HOME/.claude/settings.json" <<'EOF'
+import json, sys
+settings = json.load(open(sys.argv[1]))
+settings["skipDangerousModePermissionPrompt"] = True
+json.dump(settings, open(sys.argv[2], "w"), indent=2)
+EOF
 
 # bot-poll (Rust); rebuilt only when its sources change.
 rev=$(git -C "$homegit" log -1 --format=%H -- crates/)
@@ -47,7 +54,7 @@ gh auth status >/dev/null 2>&1 || { log "gh is not logged in"; exit 1; }
 if [ ! -s "$HOME/.claude.json" ]; then
     python3 - "$clones" > "$HOME/.claude.json" <<'EOF'
 import json, sys
-print(json.dumps({"hasCompletedOnboarding": True, "bypassPermissionsModeAccepted": True,
+print(json.dumps({"hasCompletedOnboarding": True,
                   "projects": {sys.argv[1]: {"hasTrustDialogAccepted": True}}}))
 EOF
 fi

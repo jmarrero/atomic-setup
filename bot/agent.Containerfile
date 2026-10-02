@@ -4,7 +4,7 @@ FROM registry.fedoraproject.org/fedora:45
 
 RUN dnf install -y \
         # basics for reading and searching code
-        git gh jq ripgrep fd-find diffutils patch findutils procps-ng python3 \
+        git gh jq ripgrep fd-find diffutils patch findutils procps-ng python3 hostname \
         # to push branches to and run builds on devspace runners over the tailnet
         openssh-clients rsync tmux just \
         # so agents can build and test Rust projects like bootc
