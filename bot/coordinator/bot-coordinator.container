@@ -12,6 +12,9 @@ Image=localhost/bot-coordinator:latest
 # Credentials as podman secrets (see bot/SETUP.md), never in the image.
 Secret=jmarrero-bot-gh-token,type=env,target=GH_TOKEN
 Secret=jmarrero-bot-claude-token,type=env,target=CLAUDE_CODE_OAUTH_TOKEN
+# The Copilot login for bot-opencode (bot/copilot-login.sh), and its model.
+Secret=jmarrero-bot-copilot-auth,type=env,target=OPENCODE_AUTH_CONTENT
+Environment=BOT_OPENCODE_MODEL=github-copilot/gpt-6.1-sol
 # The persistent home: clones, Claude's sessions, caches, devspace keys.
 # No keep-id: the container's users map to subordinate ids, not to you.
 Volume=bot-coordinator-home:/home/agent
@@ -21,6 +24,10 @@ Volume=%h/.config/bot-harness:/home/agent/.config/bot-harness:ro,z
 # botd answers "@BOT <command> ..." at the start of a line; bot-notify leaves
 # those to it. Keep in step with botd's agents ([agents.*]) plus help.
 Environment="BOT_NOTIFY_SKIP_COMMANDS=claude opencode help"
+# The coordinator's model, pinned by full name (an alias like "opus" moves
+# with new releases), and its effort (low, medium, high, xhigh, max).
+Environment=COORDINATOR_MODEL=claude-opus-5-5
+Environment=COORDINATOR_EFFORT=high
 # Network through the host (pasta), which is on the tailnet.
 PodmanArgs=--memory=16g --cpus=4 --pids-limit=8192
 NoNewPrivileges=true

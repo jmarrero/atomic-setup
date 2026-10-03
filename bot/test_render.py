@@ -11,6 +11,7 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 RENDER = os.path.join(HERE, "coordinator", "render-skills.py")
 GOALS = os.path.join(HERE, "coordinator", "operator-goals.md")
+NOTES = os.path.join(HERE, "coordinator", "operator-notes.md")
 HOMEGIT = os.environ.get("HOMEGIT", os.path.expanduser("~/development/github/jmarrero-forge/homegit"))
 CONFIG = json.load(open(os.path.join(HERE, "operator.json")))
 
@@ -30,7 +31,7 @@ class RenderTest(unittest.TestCase):
         os.chmod(stub, stat.S_IRWXU)
         cls.out = os.path.join(cls.tmp, "rendered")
         env = dict(os.environ, PATH=f"{cls.tmp}:{os.environ['PATH']}")
-        cls.proc = subprocess.run([sys.executable, RENDER, HOMEGIT, cls.out, GOALS],
+        cls.proc = subprocess.run([sys.executable, RENDER, HOMEGIT, cls.out, GOALS, NOTES],
                                   env=env, capture_output=True, text=True)
 
     def read(self, rel):
@@ -68,6 +69,11 @@ class RenderTest(unittest.TestCase):
     def test_peers_are_cgwalters_harness(self):
         self.assertIn("coordination questions from cgwalters-bot and cgwalters", self.read("skills/bot-notify/SKILL.md"))
         self.assertIn("the channel with cgwalters' harness", self.read("skills/coordinator/worker-preamble.md"))
+
+    def test_operator_notes_are_appended(self):
+        coordinator = self.read("skills/coordinator/SKILL.md")
+        self.assertTrue(coordinator.rstrip().endswith(open(NOTES).read().strip()))
+        self.assertIn("bot-opencode", coordinator)
 
     def test_paths_point_at_the_rendered_skills(self):
         self.assertIn("~/.agents/skills/coordinator/", self.read("skills/coordinator/SKILL.md"))

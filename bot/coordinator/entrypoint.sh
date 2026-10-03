@@ -29,8 +29,10 @@ fi
 # the model sometimes copies). Rendered again on every start, after the pull.
 goals=$HOME/.config/bot-harness/goals.md
 test -s "$goals" || goals=/usr/local/share/bot-coordinator/operator-goals.md
+notes=$HOME/.config/bot-harness/notes.md
+test -s "$notes" || notes=/usr/local/share/bot-coordinator/operator-notes.md
 rendered=$HOME/.local/share/bot-skills
-render-skills "$homegit" "$rendered" "$goals"
+render-skills "$homegit" "$rendered" "$goals" "$notes"
 ln -sfn "$rendered/skills" "$HOME/.agents/skills"
 rm -f "$HOME"/.claude/skills/*
 for skill in "$rendered"/skills/*/; do
@@ -71,6 +73,10 @@ fi
 # are skipped (it runs unattended, in this container); COORDINATOR_PROMPT,
 # if set, is the first message, e.g. "Load the coordinator skill and run".
 cmd=(claude --dangerously-skip-permissions)
+# Its model and effort (COORDINATOR_MODEL, COORDINATOR_EFFORT); unset means
+# Claude Code's defaults. Subagents inherit the model unless they set one.
+[ -n "${COORDINATOR_MODEL:-}" ] && cmd+=(--model "$COORDINATOR_MODEL")
+[ -n "${COORDINATOR_EFFORT:-}" ] && cmd+=(--effort "$COORDINATOR_EFFORT")
 [ -n "${COORDINATOR_PROMPT:-}" ] && cmd+=("$COORDINATOR_PROMPT")
 cd "$clones"
 tmux new-session -d -s coordinator -x 200 -y 50 "$(printf '%q ' "${cmd[@]}")"

@@ -45,6 +45,19 @@ writes it, so the fork is easy to update. If a homegit change moves a
 section the renderer replaces, it stops with an error rather than render
 his goals as yours; `bot/test_render.py` checks the result.
 
+## opencode for reviews and well-defined work
+
+The coordinator also has `bot-opencode`, which runs one task with opencode
+on a GitHub Copilot model (`BOT_OPENCODE_MODEL`, with the
+`jmarrero-bot-copilot-auth` secret; usage counts against the license
+holder's premium requests). The operator's notes
+(`~/.config/bot-harness/notes.md`, default
+[`operator-notes.md`](operator-notes.md), appended to the rendered
+coordinator skill) say when: a second, different-model review of every
+forge PR, and items well-defined enough to need no design choices. Edit the
+notes and restart the coordinator to change that. Runs are logged in
+`~/.local/state/bot-opencode/` in the container.
+
 ## Use
 
     podman build -t localhost/bot-coordinator bot/coordinator/
@@ -59,7 +72,8 @@ the bot."); comment it out to have it wait for you. If the Claude session
 ends (`/exit`, or by accident), systemd restarts it after 60 seconds; stop it
 for good with `systemctl --user stop bot-coordinator`. Attach to watch or
 talk to it, and detach with Ctrl-b d. Its usage counts against the Claude
-Max subscription.
+Max subscription. It runs `claude-opus-5-5` at `high` effort
+(`COORDINATOR_MODEL`, `COORDINATOR_EFFORT` in the `.container` file).
 
 The coordinator only hears of news while `bot-poll` runs in its background,
 and it sometimes stops it and doesn't start it again. The entrypoint's
