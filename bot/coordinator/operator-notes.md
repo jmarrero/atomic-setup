@@ -15,6 +15,24 @@ briefed with that state, or set it to Needs human with the reason. Say
 which in your start-up summary. Never leave an item In Progress without a
 worker on it.
 
+### Merging in the forge
+
+jmarrero confirmed the "Harness changes" rule (2026-10-03): the bot merges
+its own pull requests in its own repositories once CI is green and a
+separate reviewer approved that exact head, except truly critical changes,
+which wait for him as that rule says. Here those repositories are exactly:
+
+- jmarrero-forge/review, jmarrero-forge/tracker and jmarrero-forge/.github;
+- jmarrero-forge/homegit (the bot's homegit, though it is a fork of
+  cgwalters-bot/homegit), and jmarrero-bot/jmarrero-bot.
+
+Never merge in the forks of upstream projects (jmarrero-forge/bootc,
+jmarrero-forge/ostree, jmarrero-forge/rpm-ostree, and any fork added
+later): their PRs are proposals that reach upstream only through
+jmarrero's approval and `bot-pr promote`. Nor in jmarrero/atomic-setup,
+which builds the bot machine's OS image: the bot can only open pull
+requests there, from the jmarrero-forge fork, and jmarrero merges them.
+
 ### Second opinions and well-defined work with opencode
 
 `bot-opencode` runs one task with opencode on a GitHub Copilot model (a
