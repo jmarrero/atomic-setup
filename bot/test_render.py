@@ -75,6 +75,16 @@ class RenderTest(unittest.TestCase):
         self.assertTrue(coordinator.rstrip().endswith(open(NOTES).read().strip()))
         self.assertIn("bot-opencode", coordinator)
 
+    def test_checkout_paths_are_the_bots_clones(self):
+        # The coordinator's clones live under ~/src/github/BOT, never under
+        # the homegit repository's owner.
+        for rel in ("skills/coordinator/SKILL.md", "skills/coordinator/worker-preamble.md",
+                    "skills/coordinator/reviewer-preamble.md"):
+            text = self.read(rel)
+            self.assertNotIn(f"~/src/github/{CONFIG['forge_org']}", text, rel)
+        self.assertIn(f"~/src/github/{CONFIG['bot']['login']}/homegit",
+                      self.read("skills/coordinator/worker-preamble.md"))
+
     def test_paths_point_at_the_rendered_skills(self):
         self.assertIn("~/.agents/skills/coordinator/", self.read("skills/coordinator/SKILL.md"))
         self.assertNotIn("homegit/dotfiles/.agents/skills", self.read("skills/coordinator/SKILL.md"))

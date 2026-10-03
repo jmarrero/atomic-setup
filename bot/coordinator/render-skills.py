@@ -101,6 +101,10 @@ def substitutions(cfg):
         # Paths to the skills in the homegit checkout: the rendered copies.
         (r"~/src/github/cgwalters-bot/homegit/dotfiles/\.agents/skills/", skills),
         (r"(?<![\w/.~])dotfiles/\.agents/skills/", skills),
+        # The bot's clones (homegit's checkout among them), before the rule
+        # for the homegit repository below would turn the path into the
+        # repository's name.
+        (r"~/src/github/cgwalters-bot\b", f"~/src/github/{bot['login']}"),
         # Identities, most specific first.
         (r"Colin Walters <walters\+llm@verbum\.org>", f"{bot['git_name']} <{bot['git_email']}>"),
         (r"Colin Walters <walters@verbum\.org>", f"{op['name']} <{op['email']}>"),
