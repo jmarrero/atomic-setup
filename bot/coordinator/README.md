@@ -72,7 +72,8 @@ the bot."); comment it out to have it wait for you. If the Claude session
 ends (`/exit`, or by accident), systemd restarts it after 60 seconds; stop it
 for good with `systemctl --user stop bot-coordinator`. Attach to watch or
 talk to it, and detach with Ctrl-b d. Its usage counts against the Claude
-Max subscription.
+Max subscription. It runs `claude-opus-5-5` at `high` effort
+(`COORDINATOR_MODEL`, `COORDINATOR_EFFORT` in the `.container` file).
 
 The coordinator only hears of news while `bot-poll` runs in its background,
 and it sometimes stops it and doesn't start it again. The entrypoint's
