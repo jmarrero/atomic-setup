@@ -133,11 +133,14 @@ off here: only listed users can trigger the bot.
      others are filed (`bot.issue_repo`)
    - forks, with Actions disabled: `ostreedev/ostree`, `coreos/rpm-ostree`,
      `bootc-dev/bootc`, and homegit itself
-   - the Workstream board, public and linked to the tracker, with the
-     fields homegit's tools look up by name: Status (Todo, In Progress,
-     Draft, Needs human, In Review, Done), Priority (P0–P2), Workflow
-     (branch, analysis, pr, manual), Org (one per upstream org, the bot,
-     the forge org, other), and text fields Why, Branch and Gist
+   - the Workstream board, public and linked to the tracker, with every
+     field in homegit's docs/bootstrap.md table (the tools look them up by
+     name): Status (Todo, In Progress, Draft, Needs human, In Review,
+     Done), Priority (P0–P2), Workflow (branch, analysis, pr, manual), Org
+     (one per upstream org, the bot, the forge org, other), Est. cost (XS
+     to XL, for pacing), text fields Why, Branch, Gist, News, Lead and
+     Run, and number fields Budget tokens and Actual tokens. The optional
+     Theme and the unused Verdict fields are left out.
 
 ## 4. Devspaces
 

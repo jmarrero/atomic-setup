@@ -56,7 +56,13 @@ WORKFLOWS = [
 ORGS = ([(o, "GRAY", "") for o in sorted({u.split("/")[0] for u in FORKS})]
         + [(BOT, "GRAY", "The bot's own repositories"), (ORG, "GRAY", "This forge org"),
            ("other", "GRAY", "")])
-TEXT_FIELDS = ["Why", "Branch", "Gist"]
+# Est. cost's options must match homegit's lib/capacity.js exactly.
+EST_COSTS = [(o, "GRAY", "") for o in
+             ("XS (<200k tok)", "S (<1M tok)", "M (<5M tok)", "L (<20M tok)", "XL (>20M tok)")]
+# The full list is homegit docs/bootstrap.md's field table; Theme (optional)
+# and Verdict / Verdict target (unused) are left out.
+TEXT_FIELDS = ["Why", "Branch", "Gist", "News", "Lead", "Run"]
+NUMBER_FIELDS = ["Budget tokens", "Actual tokens"]
 LABELS = [  # (name, color, description)
     ("question", "D876E3", f"A question for @{HUMAN}; answer with an option letter"),
     ("review", "0E8A16", f"A forge PR waiting for @{HUMAN}'s review"),
@@ -217,8 +223,12 @@ def ensure_issue(repo, title, body, pin=False):
         if status != 204:
             raise RuntimeError(f"lock {repo}#{issue['number']}: HTTP {status}: {body}")
     if pin:
-        graphql("""mutation($id: ID!) { pinIssue(input: {issueId: $id}) { issue { id } } }""",
-                id=issue["node_id"])
+        try:
+            graphql("""mutation($id: ID!) { pinIssue(input: {issueId: $id}) { issue { id } } }""",
+                    id=issue["node_id"])
+        except RuntimeError as e:
+            if "already pinned" not in str(e):
+                raise
     return issue["number"]
 
 
@@ -273,7 +283,7 @@ def ensure_board():
     # Every board has a built-in Status field; replace its options with ours
     # (only while they differ, so a re-run doesn't reset items' statuses).
     for name, spec in (("Status", STATUSES), ("Priority", PRIORITIES),
-                       ("Workflow", WORKFLOWS), ("Org", ORGS)):
+                       ("Workflow", WORKFLOWS), ("Org", ORGS), ("Est. cost", EST_COSTS)):
         field = by_name.get(name)
         want = [n for n, _, _ in spec]
         if field and [o["name"] for o in field["options"]] == want:
@@ -296,14 +306,16 @@ def ensure_board():
     all_names = {f["name"] for f in graphql("""query($id: ID!) { node(id: $id) {
         ... on ProjectV2 { fields(first: 50) { nodes { ... on ProjectV2FieldCommon { name } } } } } }""",
         id=project["id"])["node"]["fields"]["nodes"] if f}
-    for name in TEXT_FIELDS:
-        if name in all_names:
-            print(f"board field {name}: exists")
-            continue
-        graphql("""mutation($p: ID!, $name: String!) { createProjectV2Field(input: {
-            projectId: $p, dataType: TEXT, name: $name}) { projectV2Field {
-            ... on ProjectV2Field { id } } } }""", p=project["id"], name=name)
-        print(f"board field {name}: created (text)")
+    for names, kind in ((TEXT_FIELDS, "TEXT"), (NUMBER_FIELDS, "NUMBER")):
+        for name in names:
+            if name in all_names:
+                print(f"board field {name}: exists")
+                continue
+            graphql("""mutation($p: ID!, $name: String!, $type: ProjectV2CustomFieldType!) {
+                createProjectV2Field(input: {projectId: $p, dataType: $type, name: $name}) {
+                projectV2Field { ... on ProjectV2Field { id } } } }""",
+                    p=project["id"], name=name, type=kind)
+            print(f"board field {name}: created ({kind.lower()})")
 
     repo = graphql("""query($org: String!) { repository(owner: $org, name: "tracker") { id } }""",
                    org=ORG)["repository"]
