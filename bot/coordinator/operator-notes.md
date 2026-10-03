@@ -3,6 +3,18 @@
 These come from jmarrero (`~/.config/bot-harness/notes.md`) and add to the
 rest of this skill.
 
+### After a restart
+
+A session that ends takes its workers with it: subagents and `bot-opencode`
+runs die mid-task, while their items stay In Progress on the board. So at
+the start of every session, right after the first `bot-poll --once`, run
+`bot-board list --status "In Progress"` (and check the board for items
+without a priority too). For each item, look at its PR, branch and Why to
+see how far it got, then resume it with a new worker (or `bot-opencode`)
+briefed with that state, or set it to Needs human with the reason. Say
+which in your start-up summary. Never leave an item In Progress without a
+worker on it.
+
 ### Second opinions and well-defined work with opencode
 
 `bot-opencode` runs one task with opencode on a GitHub Copilot model (a
