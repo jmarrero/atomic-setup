@@ -2,18 +2,34 @@
 // file into the Tailscale admin console under Access controls, replacing the
 // default allow-all policy.
 {
+	// jmarrero, invited to this tailnet as a member with his GitHub login
+	// (workboard-hub/README.md). Change both this and the tests below if he
+	// logs in as another identity.
+	"groups": {
+		"group:operator": ["jmarrero@github"],
+	},
 	"tagOwners": {
 		"tag:bot-host":          ["autogroup:admin"],
 		"tag:jmarrero-devspace": ["autogroup:admin"],
 	},
 	"grants": [
-		// The bot host may SSH to devspaces. Nothing else is allowed, and in
-		// particular nothing from a devspace to the bot host.
+		// The bot host may SSH to devspaces.
 		{"src": ["tag:bot-host"], "dst": ["tag:jmarrero-devspace"], "ip": ["tcp:22"]},
+		// jmarrero's devices may reach the workboard hub, which `tailscale
+		// serve` puts on the bot host's HTTPS port. Nothing else is allowed:
+		// in particular nothing from a devspace to the bot host, no other
+		// port of the bot host for anyone, and nothing from the bot host or
+		// a devspace to his devices.
+		{"src": ["group:operator"], "dst": ["tag:bot-host"], "ip": ["tcp:443"]},
 	],
 	// Tailscale refuses to save a policy that breaks these.
 	"tests": [
-		{"src": "tag:bot-host", "accept": ["tag:jmarrero-devspace:22"], "deny": ["tag:jmarrero-devspace:80"]},
-		{"src": "tag:jmarrero-devspace", "deny": ["tag:bot-host:22"]},
+		{"src": "tag:bot-host", "accept": ["tag:jmarrero-devspace:22"], "deny": ["tag:jmarrero-devspace:80", "jmarrero@github:22", "jmarrero@github:443"]},
+		{"src": "tag:jmarrero-devspace", "deny": ["tag:bot-host:22", "tag:bot-host:443", "jmarrero@github:22", "jmarrero@github:443"]},
+		{
+			"src":    "jmarrero@github",
+			"accept": ["tag:bot-host:443"],
+			"deny":   ["tag:bot-host:22", "tag:bot-host:80", "tag:bot-host:8421", "tag:jmarrero-devspace:22"],
+		},
 	],
 }
