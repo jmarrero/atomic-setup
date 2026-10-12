@@ -31,13 +31,18 @@ Environment=COORDINATOR_EFFORT=high
 # Network through the host (pasta), which is on the tailnet.
 PodmanArgs=--memory=16g --cpus=4 --pids-limit=8192
 NoNewPrivileges=true
+# An init (catatonit) as PID 1: it reaps the orphans the session and the
+# sweeps leave behind (git gc --auto, ssh ControlPersist, `&` jobs), which
+# the entrypoint's loop doesn't, and forwards SIGTERM to it.
+RunInit=true
 DropCapability=all
+# The UTC hour of the daily reminder to post the morning brief.
+Environment=BOT_BRIEF_HOUR_UTC=07
 # Its first message, so it starts working on every start (boot, restart)
 # without anyone attaching; comment out to have it wait for you instead.
-# bot-poll only wakes the session if Claude Code itself runs it in the
-# background (its Bash tool's run_in_background); a `&` inside a command
-# runs it untracked, and its exit on news then wakes nothing.
-Environment="COORDINATOR_PROMPT=Load the coordinator skill and run the bot. Start bot-poll with your Bash tool's run_in_background option, never with & or nohup inside a command: only a background task the tool started wakes you when it exits."
+# The entrypoint runs bot-poll and types news into the session, so the
+# session must never start one (a second can't take the first's lock).
+Environment="COORDINATOR_PROMPT=Load the coordinator skill and run the bot. This container's entrypoint runs bot-poll for you and types a message into this session when it finds news: never start bot-poll yourself, not even --once; use only bot-poll --summary and the run files. The operator's notes at the end of the skill say how this replaces its Polling and Loop cadence sections."
 
 [Service]
 # Always: ending the Claude session (/exit, or by accident) is a clean exit,
