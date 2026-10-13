@@ -8,16 +8,20 @@ copies them literally instead (it signed a comment with his Generated-by
 link), so the coordinator gets copies with this operator's values filled in.
 homegit stays as cgwalters writes it, which keeps the fork easy to update.
 
-  render-skills.py HOMEGIT DEST GOALS [NOTES]
+  render-skills.py HOMEGIT DEST GOALS [NOTES] [--backend NAME=[BACKEND-NOTES]]...
 
 writes DEST/skills/<name>/... (from dotfiles/.agents/skills), DEST/AGENTS.md
 and DEST/agents/builder.md, with values from `bot-operator --json`. GOALS is
 a Markdown file replacing cgwalters' goals and priority rules; NOTES, the
-operator's own notes, is appended to the coordinator skill. What still
-names cgwalters afterwards (links to his own repositories, issues and the
-coordination channel, kept on purpose) is listed on stderr.
+operator's own notes, is appended to the coordinator skill. Each --backend
+also writes skills/coordinator/SKILL.md.NAME, the coordinator skill with
+that backend's notes appended (say, how its tools differ from Claude
+Code's), which bot-coordinator-loop points SKILL.md at while NAME runs. What
+still names cgwalters afterwards (links to his own repositories, issues and
+the coordination channel, kept on purpose) is listed on stderr.
 """
 
+import argparse
 import json
 import os
 import re
@@ -140,9 +144,25 @@ def render(text, subs, keep_re):
     return re.sub(r"\x00(\d+)\x00", lambda m: kept[int(m.group(1))], text)
 
 
+def backend_arg(value):
+    name, sep, path = value.partition("=")
+    if not sep or not re.fullmatch(r"[a-z][a-z0-9-]{0,31}", name):
+        raise argparse.ArgumentTypeError(f"expected NAME=[NOTES], not {value!r}")
+    return name, path
+
+
 def main():
-    homegit, dest, goals_file = sys.argv[1:4]
-    notes = open(sys.argv[4]).read() if len(sys.argv) > 4 else ""
+    parser = argparse.ArgumentParser(prog="render-skills")
+    parser.add_argument("homegit")
+    parser.add_argument("dest")
+    parser.add_argument("goals")
+    parser.add_argument("notes", nargs="?")
+    parser.add_argument("--backend", type=backend_arg, action="append", default=[])
+    args = parser.parse_args()
+    homegit, dest, goals_file = args.homegit, args.dest, args.goals
+    notes = open(args.notes).read() if args.notes else ""
+    # Read first, so that a missing file fails before anything is written.
+    backends = [(name, open(path).read() if path else "") for name, path in args.backend]
     cfg = json.loads(subprocess.run(["bot-operator", "--json"], check=True,
                                     capture_output=True, text=True).stdout)
     goals = open(goals_file).read()
@@ -184,6 +204,11 @@ def main():
     if notes.strip():
         with open(notes_path, "a") as f:
             f.write("\n" + notes.strip() + "\n")
+    coordinator = os.path.join(tmp, "skills/coordinator/SKILL.md")
+    for name, text in backends:
+        # As written, like the operator's notes.
+        with open(coordinator) as f, open(f"{coordinator}.{name}", "w") as out:
+            out.write(f.read() + ("\n" + text.strip() + "\n" if text.strip() else ""))
     shutil.rmtree(dest, ignore_errors=True)
     os.rename(tmp, dest)
     print(f"render-skills: rendered for {cfg['operator']['login']}/{cfg['bot']['login']}; "
