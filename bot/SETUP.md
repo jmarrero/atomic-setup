@@ -163,12 +163,15 @@ Builds and tests run only on ephemeral RHEL 10 runners from bootc-dev's
 4. Runner access: bootc-dev → Settings → Actions → Runner groups → `rhel10`
    must allow the repo. It's set to all repositories, public ones included.
 5. The tailnet, logged in to Tailscale as the bot (here `jmarrero-bot.github`,
-   with MagicDNS on; it holds only the bot machine and the devspaces):
+   with MagicDNS on; it holds the bot machine, the devspaces, and jmarrero's
+   devices for the workboard hub):
    - On the bot machine: `sudo tailscale up`, logging in via the printed URL.
    - Access controls → JSON editor: replace the default allow-all policy
      with [`tailscale-policy.hujson`](tailscale-policy.hujson). It lets
-     `tag:bot-host` reach `tag:jmarrero-devspace` on TCP 22 and nothing else,
-     and its tests reject any later edit that lets a devspace reach the
+     `tag:bot-host` reach `tag:jmarrero-devspace` on TCP 22, and jmarrero's
+     devices reach the workboard hub on the bot machine's TCP 443
+     ([`workboard-hub/README.md`](workboard-hub/README.md)), and nothing
+     else; its tests reject any later edit that lets a devspace reach the
      host. Containers on the bot machine share its network, so whatever it
      can reach, they can too.
    - Tag the bot machine: `sudo tailscale up --advertise-tags=tag:bot-host`.
