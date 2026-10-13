@@ -41,19 +41,66 @@ This overrides what "Polling" and "Loop cadence" above say about starting
   periods; that's expected until homegit's heartbeat can be refreshed from
   outside the session.
 
+### Backends and handoffs
+
+The entrypoint runs this session on the first available backend in
+`~/.config/bot-harness/backends.toml` (Claude Code, then opencode, by
+default), and switches when a backend's usage reaches its threshold (95%
+of Claude's 7-day window by default). It switches back once the preferred
+backend's window resets. `bot-coordinator-loop status` shows the active
+backend, each one's usage, and the next one ("none" when you are the last
+available backend). `$BOT_COORDINATOR_BACKEND` names yours.
+
+- **The first thing in every session**, before loading anything or any
+  other work, is `bot-coordinator-loop started`, as your first message
+  says: it tells the entrypoint this backend works. Without it, the
+  entrypoint takes the session for broken after a few minutes and moves to
+  the next backend. The "Started: ..." or "Takeover: ..." note it types
+  later says the same; run it again if you're not sure you did. After a
+  takeover, do what "After a restart" says, then carry on.
+- **"Handoff: ..."**: the entrypoint is about to stop this session and
+  start the next backend. Stop dispatching. For every running worker,
+  record on its board item, in Why, how far it got, its branch or PR,
+  what's left, and the devspace or agent run (`bot-runs`) it uses: workers
+  stop with this session, but their devspaces and runs don't, and the
+  next backend stops or reuses them when it resumes the items as "After a
+  restart" says. Don't wait for them. Then run `bot-coordinator-loop
+  handed-off` and stop. If you don't, the session is stopped at the
+  handoff timeout anyway.
+- Never start or stop a backend yourself. Probe overrides are the
+  operator's, in `~/.config/bot-harness/backend-marks.toml`.
+
+### Capacity: hand off rather than stop
+
+This replaces "at 100% dispatch nothing new" in "Capacity" above. Check
+`bot-coordinator-loop status` next to `bot-capacity` before dispatching:
+
+- **While there is a next backend**, dispatch by `bot-capacity` as the
+  skill says, but only work that fits below your backend's threshold:
+  workers still running at the handoff stop with this session. There is no
+  "P0 only" step, since the next backend takes the rest.
+- **On the last available backend**, the skill's rules hold, by your own
+  backend's reading: P0 only from about 80%, and tell the operator in the
+  brief. With no reading for your backend, dispatch as usual and say so in
+  the brief.
+- **When every backend is at its threshold** (the entrypoint says so in a
+  message), dispatch nothing new and let running workers finish.
+
 ### After a restart
 
-A session that ends takes its workers with it: subagents and `bot-opencode`
-runs die mid-task, while their items stay In Progress on the board. So at
-the start of every session, right after reading `bot-poll --summary` and
-`bot-coordinator-loop pending` (the entrypoint's first poll sweeps at once
-and types what's new), run
-`bot-board list --status "In Progress"` (and check the board for items
-without a priority too). For each item, look at its PR, branch and Why to
-see how far it got, then resume it with a new worker (or `bot-opencode`)
-briefed with that state, or set it to Needs human with the reason. Say
-which in your start-up summary. Never leave an item In Progress without a
-worker on it.
+A session that ends (a restart, or a handoff to another backend) takes its
+workers with it: subagents and `bot-opencode` runs die mid-task, while
+their items stay In Progress on the board. So at the start of every
+session, right after `bot-coordinator-loop started` and reading `bot-poll
+--summary` and `bot-coordinator-loop pending` (the entrypoint's first poll
+sweeps at once and types what's new), run `bot-board list --status "In
+Progress"` (and check the board for items without a priority too). For
+each item, look at its PR, branch and Why to see how far it got (and at
+any devspace or agent run its Why names: stop it, or reuse it), then
+resume it with a new worker (or, under Claude, `bot-opencode`) briefed
+with that state, or set it to Needs human with the reason. Say which in
+your start-up summary. Never leave an item In Progress without a worker
+on it.
 
 ### Merging in the forge
 
@@ -75,11 +122,13 @@ requests there, from the jmarrero-forge fork, and jmarrero merges them.
 
 ### Second opinions and well-defined work with opencode
 
-`bot-opencode` runs one task with opencode on a GitHub Copilot model (a
-different model family from yours; usage counts against jmarrero's Copilot
-premium requests). Always start it with the Bash tool's
-`run_in_background`, so its exit wakes you, and give it `--name` (e.g. the
-item or PR) and `--dir` (a worktree of its own). Run at most two at once.
+This is for a Claude Code session; the opencode backend's own notes, at
+the end, say how it gets its second opinions. `bot-opencode` runs one task
+with opencode on a GitHub Copilot model (a different model family from
+yours; usage counts against jmarrero's Copilot premium requests). Always
+start it with the Bash tool's `run_in_background`, so its exit wakes you,
+and give it `--name` (e.g. the item or PR) and `--dir` (a worktree of its
+own). Run at most two at once.
 
 - **Reviews.** Every forge PR also gets a review from opencode, besides the
   reviewer subagent: brief it like a reviewer, starting with "Read

@@ -12,6 +12,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RENDER = os.path.join(HERE, "coordinator", "render-skills.py")
 GOALS = os.path.join(HERE, "coordinator", "operator-goals.md")
 NOTES = os.path.join(HERE, "coordinator", "operator-notes.md")
+BACKEND_NOTES = os.path.join(HERE, "coordinator", "backend-opencode.md")
 HOMEGIT = os.environ.get("HOMEGIT", os.path.expanduser("~/development/github/jmarrero-forge/homegit"))
 CONFIG = json.load(open(os.path.join(HERE, "operator.json")))
 
@@ -31,7 +32,8 @@ class RenderTest(unittest.TestCase):
         os.chmod(stub, stat.S_IRWXU)
         cls.out = os.path.join(cls.tmp, "rendered")
         env = dict(os.environ, PATH=f"{cls.tmp}:{os.environ['PATH']}")
-        cls.proc = subprocess.run([sys.executable, RENDER, HOMEGIT, cls.out, GOALS, NOTES],
+        cls.proc = subprocess.run([sys.executable, RENDER, HOMEGIT, cls.out, GOALS, NOTES,
+                                   "--backend=claude=", f"--backend=opencode={BACKEND_NOTES}"],
                                   env=env, capture_output=True, text=True)
 
     def read(self, rel):
@@ -74,6 +76,13 @@ class RenderTest(unittest.TestCase):
         coordinator = self.read("skills/coordinator/SKILL.md")
         self.assertTrue(coordinator.rstrip().endswith(open(NOTES).read().strip()))
         self.assertIn("bot-opencode", coordinator)
+
+    def test_a_coordinator_skill_per_backend(self):
+        coordinator = self.read("skills/coordinator/SKILL.md")
+        self.assertEqual(self.read("skills/coordinator/SKILL.md.claude"), coordinator)
+        opencode = self.read("skills/coordinator/SKILL.md.opencode")
+        self.assertTrue(opencode.startswith(coordinator))
+        self.assertTrue(opencode.rstrip().endswith(open(BACKEND_NOTES).read().strip()))
 
     def test_checkout_paths_are_the_bots_clones(self):
         # The coordinator's clones live under ~/src/github/BOT, never under
