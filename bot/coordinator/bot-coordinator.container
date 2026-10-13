@@ -2,7 +2,7 @@
 #   ln -s $PWD/bot/coordinator/bot-coordinator.container ~/.config/containers/systemd/
 #   systemctl --user daemon-reload && systemctl --user start bot-coordinator
 [Unit]
-Description=Bot coordinator: homegit's coordinator skill in Claude Code
+Description=Bot coordinator: homegit's coordinator skill in Claude Code or opencode
 Wants=network-online.target
 After=network-online.target
 
@@ -12,9 +12,13 @@ Image=localhost/bot-coordinator:latest
 # Credentials as podman secrets (see bot/SETUP.md), never in the image.
 Secret=jmarrero-bot-gh-token,type=env,target=GH_TOKEN
 Secret=jmarrero-bot-claude-token,type=env,target=CLAUDE_CODE_OAUTH_TOKEN
-# The Copilot login for bot-opencode (bot/copilot-login.sh), and its model.
+# The Copilot login for bot-opencode (bot/copilot-login.sh), and its model,
+# which is also the opencode coordinator backend's (see backends.toml).
 Secret=jmarrero-bot-copilot-auth,type=env,target=OPENCODE_AUTH_CONTENT
 Environment=BOT_OPENCODE_MODEL=github-copilot/gpt-6.1-sol
+# The opencode coordinator's second model family, for reviews (its
+# opencode.json reads it).
+Environment=BOT_OPENCODE_REVIEW_MODEL=github-copilot/claude-sonnet-5.5
 # The persistent home: clones, Claude's sessions, caches, devspace keys.
 # No keep-id: the container's users map to subordinate ids, not to you.
 Volume=bot-coordinator-home:/home/agent
@@ -24,8 +28,10 @@ Volume=%h/.config/bot-harness:/home/agent/.config/bot-harness:ro,z
 # botd answers "@BOT <command> ..." at the start of a line; bot-notify leaves
 # those to it. Keep in step with botd's agents ([agents.*]) plus help.
 Environment="BOT_NOTIFY_SKIP_COMMANDS=claude opencode help"
-# The coordinator's model, pinned by full name (an alias like "opus" moves
-# with new releases), and its effort (low, medium, high, xhigh, max).
+# The Claude coordinator backend's model, pinned by full name (an alias like
+# "opus" moves with new releases), and its effort (low, medium, high, xhigh,
+# max). The backends, in order, and when the loop switches between them are
+# in ~/.config/bot-harness/backends.toml (default: backends.toml here).
 Environment=COORDINATOR_MODEL=claude-opus-5-5
 Environment=COORDINATOR_EFFORT=high
 # Network through the host (pasta), which is on the tailnet.
@@ -38,11 +44,14 @@ RunInit=true
 DropCapability=all
 # The UTC hour of the daily reminder to post the morning brief.
 Environment=BOT_BRIEF_HOUR_UTC=07
-# Its first message, so it starts working on every start (boot, restart)
-# without anyone attaching; comment out to have it wait for you instead.
+# Its first message, on every backend, so it starts working on every start
+# (boot, restart, handoff) without anyone attaching; comment out to have it
+# wait for you instead.
 # The entrypoint runs bot-poll and types news into the session, so the
-# session must never start one (a second can't take the first's lock).
-Environment="COORDINATOR_PROMPT=Load the coordinator skill and run the bot. This container's entrypoint runs bot-poll for you and types a message into this session when it finds news: never start bot-poll yourself, not even --once; use only bot-poll --summary and the run files. The operator's notes at the end of the skill say how this replaces its Polling and Loop cadence sections."
+# session must never start one (a second can't take the first's lock). It
+# takes a session that doesn't run `bot-coordinator-loop started` within
+# minutes for broken, so that comes first, before the first turn's work.
+Environment="COORDINATOR_PROMPT=First run `bot-coordinator-loop started`. Then load the coordinator skill and run the bot. This container's entrypoint runs bot-poll for you and types a message into this session when it finds news: never start bot-poll yourself, not even --once; use only bot-poll --summary and the run files. The operator's notes at the end of the skill say how this replaces its Polling and Loop cadence sections."
 
 [Service]
 # Always: ending the Claude session (/exit, or by accident) is a clean exit,

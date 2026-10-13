@@ -321,7 +321,11 @@ homegit's skills rendered for this operator, with the goals in
     install -m 644 bot/coordinator/operator-notes.md ~/.config/bot-harness/notes.md
 
 The notes also tell it when to hand reviews and well-defined work to
-opencode (`bot-opencode`, with the Copilot login from §5).
+opencode (`bot-opencode`, with the Copilot login from §5). With that login,
+opencode also takes over coordinating when Claude's weekly usage reaches
+95%, until it resets; to change the backends or thresholds:
+
+    install -m 644 bot/coordinator/backends.toml ~/.config/bot-harness/backends.toml
 
     podman build -t localhost/bot-coordinator bot/coordinator/
     mkdir -p ~/.config/containers/systemd

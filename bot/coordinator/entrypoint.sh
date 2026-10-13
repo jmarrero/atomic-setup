@@ -1,12 +1,15 @@
 #!/bin/bash
-# Prepare the bot's home from homegit, then run Claude Code in tmux until that
-# session ends. The home directory is a persistent volume: clones, Claude's
-# sessions, caches and bot-devspace's keys survive restarts.
+# Prepare the bot's home from homegit, then hand over to bot-coordinator-loop,
+# which runs the coordinator session in tmux on the first available backend
+# (backends.toml) until it ends. The home directory is a persistent volume:
+# clones, the sessions, caches and bot-devspace's keys survive restarts.
 #   podman exec -it bot-coordinator tmux attach -t coordinator
 set -euo pipefail
 
 : "${BOT_LOGIN:?}" "${HOMEGIT_URL:?}" "${GH_TOKEN:?GH_TOKEN secret missing}"
-: "${CLAUDE_CODE_OAUTH_TOKEN:?CLAUDE_CODE_OAUTH_TOKEN secret missing}"
+# The backends (each one's secret is checked there): fail early on a bad
+# config, or when none can start.
+bot-coordinator-loop check
 clones=$HOME/src/github/$BOT_LOGIN
 homegit=$clones/homegit
 log() { echo "bot-coordinator: $*" >&2; }
@@ -32,13 +35,18 @@ test -s "$goals" || goals=/usr/local/share/bot-coordinator/operator-goals.md
 notes=$HOME/.config/bot-harness/notes.md
 test -s "$notes" || notes=/usr/local/share/bot-coordinator/operator-notes.md
 rendered=$HOME/.local/share/bot-skills
-render-skills "$homegit" "$rendered" "$goals" "$notes"
+# Plus a variant of the coordinator skill per backend, with its notes.
+backend_args=$(bot-coordinator-loop render-args)
+mapfile -t backend_args <<<"$backend_args"
+render-skills "$homegit" "$rendered" "$goals" "$notes" "${backend_args[@]}"
 ln -sfn "$rendered/skills" "$HOME/.agents/skills"
 rm -f "$HOME"/.claude/skills/*
 for skill in "$rendered"/skills/*/; do
     ln -sfn "$skill" "$HOME/.claude/skills/$(basename "$skill")"
 done
 ln -sfn "$rendered/AGENTS.md" "$HOME/.claude/CLAUDE.md"
+mkdir -p "$HOME/.config/opencode"
+ln -sfn "$rendered/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
 ln -sfn "$rendered/agents/builder.md" "$HOME/.claude/agents/builder.md"
 # homegit's settings, plus accepting --dangerously-skip-permissions' warning
 # screen, which would otherwise wait for someone to attach and confirm it.
@@ -69,22 +77,16 @@ print(json.dumps({"hasCompletedOnboarding": True,
 EOF
 fi
 
-# Interactive, so the operator can attach and talk to it. Permission prompts
-# are skipped (it runs unattended, in this container); COORDINATOR_PROMPT,
-# if set, is the first message, e.g. "Load the coordinator skill and run".
-cmd=(claude --dangerously-skip-permissions)
-# Its model and effort (COORDINATOR_MODEL, COORDINATOR_EFFORT); unset means
-# Claude Code's defaults. Subagents inherit the model unless they set one.
-[ -n "${COORDINATOR_MODEL:-}" ] && cmd+=(--model "$COORDINATOR_MODEL")
-[ -n "${COORDINATOR_EFFORT:-}" ] && cmd+=(--effort "$COORDINATOR_EFFORT")
-[ -n "${COORDINATOR_PROMPT:-}" ] && cmd+=("$COORDINATOR_PROMPT")
+# The session is the loop's to start, on the first available backend, in
+# tmux session `coordinator` in the clones directory: interactive, so the
+# operator can attach and talk to it, with permission prompts skipped (it
+# runs unattended, in this container), and COORDINATOR_PROMPT as its first
+# message. The loop also keeps bot-poll running outside the session, which
+# wakes only when there is something to handle: it types bot-poll's news
+# (kinds and run only), a daily brief reminder and handoffs into the
+# session, and stops it on SIGTERM (forwarded by the container's init,
+# RunInit=true). A poll run as the session's background task would wake it
+# every 2 hours, when Claude Code's Bash tool kills it.
 cd "$clones"
-tmux new-session -d -s coordinator -x 200 -y 50 "$(printf '%q ' "${cmd[@]}")"
-log "started; attach with: podman exec -it bot-coordinator tmux attach -t coordinator"
-# The poll runs here, outside the session, which wakes only when there is
-# something to handle: bot-coordinator-loop keeps bot-poll running, types its
-# news (kinds and run only) and a daily brief reminder into the session, and
-# stops it on SIGTERM (forwarded by the container's init, RunInit=true). A
-# poll run as the session's background task would wake it every 2 hours,
-# when Claude Code's Bash tool kills it.
+log "starting; attach with: podman exec -it bot-coordinator tmux attach -t coordinator"
 exec bot-coordinator-loop run
