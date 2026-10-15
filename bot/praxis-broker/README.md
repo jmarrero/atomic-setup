@@ -63,7 +63,7 @@ In this order, on the bot machine, from this checkout:
        INFERENCE_URL=http://ADDRESS:8081         # ADDRESS from step 4
        INFERENCE_AUDIENCE=jmarrero-praxis-broker
 
-   And enable the [run-token policy](#run-token-policy) by a pull request here; until then no run registers.
+   The [run-token policy](#run-token-policy) admits the tracker's wrapper at the commit its `dispatch.yml` pins, so once the pod is up, runs from the tracker register.
 
 ## Verify
 
@@ -71,11 +71,11 @@ On this machine, Praxis is on loopback port 18080:
 
     curl -s http://127.0.0.1:18080/usage                  # praxis-broker-usage/v1 JSON
     curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:18080/anthropic/v1/messages/count_tokens   # 403: the Anthropic routes are served (POST only)
-    curl -s -o /dev/null -w '%{http_code}\n' -X POST http://127.0.0.1:18080/v1/runs                     # 503 while the policy is disabled; once enabled, 401: it is loaded and wants an OIDC token
+    curl -s -o /dev/null -w '%{http_code}\n' -X POST http://127.0.0.1:18080/v1/runs                     # 401: the policy is loaded and wants an OIDC token; 503 means no policy file
     curl -s -D - -o /dev/null -H 'Origin: https://jmarrero-forge.github.io' http://127.0.0.1:18080/usage | grep -i '^access-control-allow-origin'
-    podman logs praxis-credential-broker-praxis 2>&1 | grep -i -m3 'warn\|error'   # "no run registration policy" while disabled, the called_workflows warning once enabled
+    podman logs praxis-credential-broker-praxis 2>&1 | grep -i -m3 'warn\|error'   # the called_workflows warning is expected; "no run registration policy" means the file is missing
 
-From one of jmarrero's devices on the bot's tailnet, `curl http://ADDRESS:8081/usage` should answer the same JSON; a timeout means the policy of step 2 or the node's login of step 3 isn't in place. From a runner, once the policy is enabled, jmarrero-forge/actions' `tailscale` action with `check: 'true'` joins, then expects 401 from `POST /v1/runs`; before that it gets 503 and the check fails. After the first real run, `/usage` has `anthropic.counts` and `anthropic.unified_5h`, and the log has its `run registered` and `request usage` lines. A 401 from Anthropic in those lines means the token was refused.
+From one of jmarrero's devices on the bot's tailnet, `curl http://ADDRESS:8081/usage` should answer the same JSON; a timeout means the policy of step 2 or the node's login of step 3 isn't in place. From a runner, jmarrero-forge/actions' `tailscale` action with `check: 'true'` joins, then expects 401 from `POST /v1/runs`. After the first real run, `/usage` has `anthropic.counts` and `anthropic.unified_5h`, and the log has its `run registered` and `request usage` lines. A 401 from Anthropic in those lines means the token was refused.
 
 ## Caps
 
@@ -83,13 +83,15 @@ The broker caps injected Claude use at 10M weighted tokens per run (upstream: 20
 
 ## Run-token policy
 
-The policy decides which jobs may register runs, by their OIDC token's claims (upstream's INTERNALS.md, "Run tokens" and "Admitting more workflows"). It is disabled for now: it is [policy/run-token-policy.yaml.disabled](policy/run-token-policy.yaml.disabled), and the gateway reads only `policy/run-token-policy.yaml`, so `POST /v1/runs` answers 503 and only pass-through requests are served. Every entry in it is commented out, and a policy with no entry stops the gateway at startup, so the file can't just stay under its real name. Enabling it is one pull request that uncomments the wrapper's entry and renames the file, then a restart while no run is active.
+The policy decides which jobs may register runs, by their OIDC token's claims (upstream's INTERNALS.md, "Run tokens" and "Admitting more workflows"). It is [policy/run-token-policy.yaml](policy/run-token-policy.yaml), which the gateway reads when it starts: a change to it takes effect after `git pull` and a restart of the pod (as under [Updating](#updating)), while no run is active, since a restart forgets registered runs. Without the file, `POST /v1/runs` answers 503 and only pass-through requests are served; a policy with no entry stops the gateway at startup.
 
 It has a deployment-specific audience, `jmarrero-praxis-broker`, which the caller's `INFERENCE_AUDIENCE` must match, so that an identity token made out to another praxis broker is no good here. Callers are pinned to the tracker by repository id (1400840502), and only `workflow_dispatch`, which needs write access to the tracker, is admitted. Which entry admits a run depends on which workflow file holds its agent job, since that file is the token's `job_workflow_ref`:
 
-- **The tracker's wrapper in jmarrero-forge/actions**, `jmarrero-agentic-job.yml`, whose agent job joins the tailnet ([jmarrero-forge/tracker#20](https://github.com/jmarrero-forge/tracker/issues/20)): a `called_workflows` entry naming the wrapper's file, with the commit the tracker calls it at. That commit is the jmarrero-forge/actions `main` commit the tracker pins once jmarrero-forge/actions#1 merges, so the entry has the placeholder `sha: COMMIT` until then; uncommented as it is, the gateway refuses to start. The entry names the commit rather than a branch, so that a change to what may spend the subscription is a pull request here, which jmarrero merges. The cost is one such pull request, and a restart, each time the tracker's pin moves. With `ref: refs/heads/main` instead, whoever can push the wrapper's `main` (the bot included) would decide what admitted jobs do, with no change here.
+- **The tracker's wrapper in jmarrero-forge/actions**, `jmarrero-agentic-job.yml`, whose agent job joins the tailnet ([jmarrero-forge/tracker#20](https://github.com/jmarrero-forge/tracker/issues/20)): a `called_workflows` entry naming the wrapper's file, with the commit the tracker calls it at, `2a2825fa768d` (from jmarrero-forge/actions#1, on its `main`). The tracker's `dispatch.yml` names that full commit in its `uses:`, so the identity token's `job_workflow_ref` ends in it and its `job_workflow_sha` is it, which is what `sha` matches. The entry names the commit rather than a branch, so that a change to what may spend the subscription is a pull request here, which jmarrero merges. The cost is one such pull request, and a restart, each time the tracker's pin moves. With `ref: refs/heads/main` instead, whoever can push the wrapper's `main` (the bot included) would decide what admitted jobs do, with no change here.
 - **agentic-job's complete reusable workflow** (`cgwalters-forge/agentic-job/.github/workflows/agentic-job.yml`) isn't admitted: nothing here calls it, and under `called_workflows` its caller chooses the runner, inputs and setup, so an entry for it would admit more than the wrapper needs.
 - **An agent job written into a tracker workflow itself** would need a `workflows` entry, its exact `job_workflow_ref` with `repository_ids: [1400840502]`, since that workflow is in the run's own repository.
+
+**Moving the wrapper's pin.** A new wrapper commit on jmarrero-forge/actions' `main` reaches runs only once the tracker's `dispatch.yml` names it, and the broker admits it only once the policy does. To move without a gap, add a second `called_workflows` entry, the same but for the new full commit id, by a pull request here, then pull and restart the pod while no run is active. Then move the tracker's `uses:` to that commit, and once it has merged, drop the old entry the same way. Check first that the commit is on the wrapper's `main`: `gh api repos/jmarrero-forge/actions/compare/SHA...main -q .status` says `ahead` or `identical`.
 
 agentic-job's `review.yml` runs on `pull_request_target` and `issue_comment` and joins cgwalters' tailnet itself, so no entry admits it. Never add `unproven` or `any_workflow`: they let any tailnet peer, or any workflow of an admitted repository, spend.
 
