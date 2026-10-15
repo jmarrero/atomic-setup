@@ -1,0 +1,54 @@
+# Which GitHub Actions jobs may register runs at jmarrero's broker, and so
+# spend his Claude subscription: the format is praxis-credential-broker's
+# run-token-policy.yaml at 45fbb14c7a66 (its INTERNALS.md, "Run tokens" and
+# "Admitting more workflows"). It holds no secret, but whoever can change
+# it decides who spends.
+#
+# DISABLED: the gateway reads only policy/run-token-policy.yaml, so under
+# this name no run registers (POST /v1/runs answers 503) and only
+# pass-through requests are served. A policy with every entry commented
+# out would not do: the gateway refuses to start on a policy that admits
+# nothing. To enable it, uncomment the wrapper's entry and rename the file
+# to run-token-policy.yaml in one pull request, then restart the pod while
+# no run is active (README.md, "Run-token policy").
+#
+# Runs are dispatched from jmarrero-forge/tracker (repository id 1400840502,
+# `gh api repos/jmarrero-forge/tracker -q .id`). A job of a reusable
+# workflow has an identity token whose job_workflow_ref names the called
+# workflow and whose repository_id is the caller's, so each entry names a
+# called workflow at one commit and admits it only from the tracker, and
+# only on workflow_dispatch: dispatch.yml and poll's dispatches
+# (`gh workflow run`) are that event, and starting one needs write access
+# to the tracker.
+
+# This deployment's own audience, so that an identity token made out to
+# another praxis broker (upstream's default is praxis-credential-broker)
+# is no good here, nor one made out to this broker anywhere else. The
+# caller's INFERENCE_AUDIENCE must match.
+audience: jmarrero-praxis-broker
+
+called_workflows:
+  # The tracker's wrapper in jmarrero-forge/actions, whose agent job joins
+  # the tailnet before it registers (jmarrero-forge/tracker#20). Its
+  # identity token names the wrapper, so the entry names the wrapper, at
+  # the commit the tracker calls it at. Enable it once
+  # jmarrero-forge/actions#1 has merged: COMMIT is then the full id of the
+  # jmarrero-forge/actions main commit the tracker pins. Left as COMMIT,
+  # the gateway refuses to start, so an entry uncommented without it can't
+  # admit anything. Move `sha` with every move of the tracker's pin.
+  # - workflow: jmarrero-forge/actions/.github/workflows/jmarrero-agentic-job.yml
+  #   sha: COMMIT
+  #   callers:
+  #     repository_ids: [1400840502]
+  #   events: [workflow_dispatch]
+  #
+  # Not admitted: agentic-job's complete reusable workflow
+  # (cgwalters-forge/agentic-job/.github/workflows/agentic-job.yml), which
+  # nothing here calls. Under called_workflows the caller chooses its
+  # runner, inputs and setup, so an entry for it would admit more than the
+  # wrapper needs.
+
+# Not used here: `workflows` (a workflow in its own repository, such as an
+# agent job written into the tracker's own dispatch.yml; that entry also
+# needs `repository_ids: [1400840502]`), `any_workflow`, and `unproven`,
+# each of which lets more callers spend (README.md, "Run-token policy").

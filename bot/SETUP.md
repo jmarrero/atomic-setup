@@ -16,6 +16,7 @@ step, in order, so the setup can be checked or redone by someone else; see
 | Coordinator | Long-lived Claude Code session running homegit's `coordinator` skill: polls, moves the board, dispatches workers | `bot/coordinator/`, Quadlet |
 | homegit | cgwalters' harness (tools and skills), configured by an operator config, run unmodified from a fork | `jmarrero-forge/homegit` |
 | Devspaces | Ephemeral RHEL 10 runners (bootc-dev's `rhel10` group) where all builds and tests run, reached over a tailnet | `bootc-dev/jmarrero-devspace-sandbox` |
+| Inference broker | cgwalters' praxis-credential-broker: agentic-job runs reach Claude through it, on the operator's subscription, capped per run | `bot/praxis-broker/`, Quadlet pod with its own tailnet node |
 
 | Name | Value |
 |---|---|
@@ -168,12 +169,14 @@ Builds and tests run only on ephemeral RHEL 10 runners from bootc-dev's
    - On the bot machine: `sudo tailscale up`, logging in via the printed URL.
    - Access controls → JSON editor: replace the default allow-all policy
      with [`tailscale-policy.hujson`](tailscale-policy.hujson). It lets
-     `tag:bot-host` reach `tag:jmarrero-devspace` on TCP 22, and jmarrero's
+     `tag:bot-host` reach `tag:jmarrero-devspace` on TCP 22, jmarrero's
      devices reach the workboard hub on the bot machine's TCP 443
-     ([`workboard-hub/README.md`](workboard-hub/README.md)), and nothing
-     else; its tests reject any later edit that lets a devspace reach the
-     host. Containers on the bot machine share its network, so whatever it
-     can reach, they can too.
+     ([`workboard-hub/README.md`](workboard-hub/README.md)), and
+     agentic-job runners and jmarrero's devices reach the inference
+     broker's own node on TCP 8081 ([§10](#10-the-inference-broker)), and
+     nothing else; its tests reject any later edit that lets a devspace or
+     a runner reach the host. Containers on the bot machine share its
+     network, so whatever it can reach, they can too.
    - Tag the bot machine: `sudo tailscale up --advertise-tags=tag:bot-host`.
    - Key expiry is left on deliberately, so the machine gets looked at every
      few months; trashcan's key expires on **2027-03-31**. Only devspace
@@ -360,3 +363,16 @@ bot-coordinator` stops it.
   then push). Don't give the bot write access again.
 - CI uses least-privilege `permissions` and actions pinned to commit SHAs;
   `.containerignore` keeps `bot/` and the rest out of the OS image.
+- **The inference broker** holds a Claude subscription token of its own and
+  spends it for runs that its run-token policy admits, within its caps.
+  Its images are pinned by digest, and its policy is in this repo, so who
+  may spend changes only by a merged pull request
+  ([praxis-broker/README.md](praxis-broker/README.md)).
+
+## 10. The inference broker
+
+agentic-job's sandboxed runs reach Claude only through an inference broker
+that holds the credential. Ours is cgwalters-bot/praxis-credential-broker
+as a rootless Quadlet pod, with its own tailnet node; its setup, checks,
+token rotation and updates are in
+[praxis-broker/README.md](praxis-broker/README.md).
