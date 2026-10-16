@@ -29,7 +29,9 @@ answers @mentions.
   and "Backends" below).
 - Credentials: podman secrets `jmarrero-bot-gh-token` (`GH_TOKEN`),
   `jmarrero-bot-claude-token` (`CLAUDE_CODE_OAUTH_TOKEN`) and
-  `jmarrero-bot-copilot-auth` (`OPENCODE_AUTH_CONTENT`); the operator
+  `jmarrero-bot-copilot-auth` (`OPENCODE_AUTH_CONTENT`), plus, when its
+  drop-in is set up, `jmarrero-bot-hackmd-token` (`HACKMD_TOKEN`, see
+  [../SETUP.md](../SETUP.md#2-github-accounts-and-tokens)); the operator
   config is `~/.config/bot-harness/operator.json` (its directory is mounted
   read-only, so edits show up without a restart).
 - No `keep-id`: the container's users map to subordinate ids, so an escape

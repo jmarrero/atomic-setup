@@ -10,6 +10,8 @@ After=network-online.target
 ContainerName=bot-coordinator
 Image=localhost/bot-coordinator:latest
 # Credentials as podman secrets (see bot/SETUP.md), never in the image.
+# Optional ones go in a drop-in instead, so a host without them still
+# starts: jmarrero-bot-hackmd-token as HACKMD_TOKEN (bot/SETUP.md §2).
 Secret=jmarrero-bot-gh-token,type=env,target=GH_TOKEN
 Secret=jmarrero-bot-claude-token,type=env,target=CLAUDE_CODE_OAUTH_TOKEN
 # The Copilot login for bot-opencode (bot/copilot-login.sh), and its model,
