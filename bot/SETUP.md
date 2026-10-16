@@ -105,11 +105,13 @@ The machine runs only LLM agents and the bot; no manual commits come from it.
    `--secret jmarrero-bot-gh-token,type=env,target=GH_TOKEN` is logged in as
    the bot, and git pushes over https through gh's credential helper. Redo
    this whenever the token is rotated.
-6. Optionally, give the coordinator jmarrero's HackMD API token, so it can
-   read and write his notes through HackMD's API
-   (`https://api.hackmd.io/v1`). Create it in HackMD under Settings → API →
-   Create API token, check it, make it a podman secret, and pass it to the
-   coordinator in a quadlet drop-in, so a host without it still starts:
+6. Optionally, give the coordinator the API token of the bot's own HackMD
+   account, so it can read and write the bot's notes, and those jmarrero
+   shares with that account, through HackMD's API
+   (`https://api.hackmd.io/v1`). Signed in to HackMD as the bot, create it
+   under Settings → API → Create API token, check it, make it a podman
+   secret, and pass it to the coordinator in a quadlet drop-in, so a host
+   without it still starts:
 
        read -rs TOK
        printf 'Authorization: Bearer %s\n' "$TOK" | curl -sS -o /dev/null -w '%{http_code}\n' -H @- https://api.hackmd.io/v1/me   # 200
@@ -123,9 +125,10 @@ The machine runs only LLM agents and the bot; no manual commits come from it.
    coordinator isn't installed yet, so nothing restarts: §8 starts it with
    the drop-in in place. It gets the token as `HACKMD_TOKEN`;
    `podman exec bot-coordinator sh -c 'test -n "$HACKMD_TOKEN" && echo set'`
-   checks it arrived without printing it. It is jmarrero's own token, so
-   the bot acts as him on HackMD: revoke it under Settings → API if it
-   leaks, and redo this with a new one.
+   checks it arrived without printing it. Never use jmarrero's own HackMD
+   token here: the coordinator's workers can read this one, so share only
+   the notes the bot needs with its account. If it leaks, revoke it under
+   the bot's Settings → API and redo this with a new one.
 
 botd can also allow a whole org (`[auth].org`); that needs a classic
 `read:org` token from a member of that org as `BOTD_MEMBERSHIP_TOKEN`. It's
@@ -373,8 +376,9 @@ bot-coordinator` stops it.
   permission prompts skipped, the same trade-off cgwalters' setup makes. It
   acts only on the operator's requests (homegit's `bot-notify`), and only
   the operator's approval of an exact head sends work upstream. It doesn't
-  map to your host user. With the HackMD drop-in (§2) it also holds
-  jmarrero's own HackMD token, which reads and writes all his notes.
+  map to your host user. With the HackMD drop-in (§2) it also holds the
+  bot's HackMD token, which reads and writes the bot account's notes and
+  those jmarrero shares with it.
 - **The tailnet** lets the bot machine reach devspaces on port 22 and
   nothing else; devspaces can't reach the bot machine.
 - **This repo builds the bot machine's OS image**, so whoever can push to it
