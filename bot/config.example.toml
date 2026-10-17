@@ -1,0 +1,64 @@
+# Copy to ~/.config/bootc-bot/config.toml
+
+[github]
+# Only act on issues/PRs in repos owned by these orgs/users.
+allowed_owners = ["bootc-dev", "jmarrero-forge", "cgwalters-forge"]
+# GitHub's X-Poll-Interval (usually 60s) wins if it is larger.
+poll_min_seconds = 30
+# Ignore requests older than this (e.g. after the machine was off for a while).
+max_age_minutes = 60
+
+[auth]
+# Only these users may trigger the bot, by numeric GitHub id
+# (curl https://api.github.com/users/<login> | jq .id). Ids, unlike logins,
+# can't be taken over by renaming.
+#
+# Users allowed on ANY repository. 1894385 = jmarrero.
+trusted_user_ids = [1894385]
+# Users allowed only in allowed_owners repos.
+# 244096 = cgwalters, 17814078 = cgwalters-bot.
+allowed_user_ids = [244096, 17814078]
+# Optionally also allow every member of an org (checked on every request with
+# BOTD_MEMBERSHIP_TOKEN), or of one team in it:
+# org = "bootc-dev"
+# team = "bot-users"
+
+[runner]
+# Built from agent.Containerfile
+image = "localhost/bootc-bot-agent:latest"
+timeout_minutes = 30
+max_concurrent = 2
+max_queued = 6
+max_runs_per_user_per_hour = 6
+memory = "8g"
+cpus = "4"
+
+# Agents: each is invoked as "@<bot> <name> <request>" and needs a section like
+#
+#   [agents.<name>]
+#   command = ["<cli>", ..., "{prompt}", ...]
+#   env = ["API_KEY_VAR"]
+#
+# "{prompt}" is replaced by the full prompt as a single argv element (no shell).
+# "env" lists variables passed into the job container: "NAME" passes NAME from
+# botd's environment, "INNER=OUTER" passes botd's OUTER as INNER.
+# [agents.<name>.secrets] maps env vars to podman secrets (ENV = "secret-name"),
+# and [agents.<name>.credential_files] mounts single files read-only
+# ("/home/agent/path" = "~/host/path"). Prefer secrets: revocable tokens made
+# for the bot, never your own CLI logins.
+# If an agent writes /bot/out/reply.md, that file is posted; otherwise stdout.
+
+[agents.claude]
+command = ["claude", "--print", "--dangerously-skip-permissions", "--output-format", "text", "{prompt}"]
+# A long-lived token from `claude setup-token` (billed to the Claude
+# subscription), stored as a podman secret rather than your own login:
+#   podman secret create jmarrero-bot-claude-token -
+[agents.claude.secrets]
+CLAUDE_CODE_OAUTH_TOKEN = "jmarrero-bot-claude-token"
+
+[agents.opencode]
+# GitHub Copilot models through opencode (bot/copilot-login.sh stores the
+# login as a podman secret). List models with: opencode models github-copilot
+command = ["opencode", "run", "--auto", "-m", "github-copilot/gpt-6.1-sol", "{prompt}"]
+[agents.opencode.secrets]
+OPENCODE_AUTH_CONTENT = "jmarrero-bot-copilot-auth"

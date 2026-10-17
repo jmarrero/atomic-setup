@@ -1,0 +1,49 @@
+# Quadlet for the work tracker's hub (jmarrero-bot/work-tracker-poc), on the
+# tailnet through `tailscale serve`. Set up as README.md says, then:
+#   ln -s $PWD/bot/workboard-hub/workboard-hub.container ~/.config/containers/systemd/
+#   systemctl --user daemon-reload && systemctl --user start workboard-hub
+[Unit]
+Description=Workboard hub: external work on one board, on the tailnet
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=workboard-hub
+# Pinned by digest. A new release is a pull request moving this line (see
+# work-tracker-poc's docs/release.md); this machine runs nothing else.
+# v0.1.0, https://github.com/jmarrero-bot/work-tracker-poc/actions/runs/38273164980
+Image=ghcr.io/jmarrero-bot/work-tracker-poc@sha256:38438e90fbfbde50ebe8b06dd44ff665ccbbd958f8f063e2e7464a303c4a7cff
+# This machine's tailnet name comes from the drop-in (README.md), which
+# replaces this line.
+Exec=serve --hub
+# The hub's data: its database, its connections' tokens, the companion token.
+Volume=workboard-hub:/var/lib/workboard
+# The hub listens on 127.0.0.1:8421 inside the container. pasta forwards the
+# host's loopback port to it (--host-lo-to-ns-lo: by default it would forward
+# to the container's own address, where nothing listens), and tailscale serve
+# proxies the tailnet to that. Keep both sides 8421: the hub takes its
+# loopback address only as that.
+Network=pasta:--host-lo-to-ns-lo
+PublishPort=127.0.0.1:8421:8421
+# Its external connections' tokens, as podman secrets (README.md), for
+# `workboard connect --token-env`: a read-only GitHub token of its own, never
+# the bot's. Others, such as Fedora's, go in the drop-in.
+Secret=workboard-hub-gh-token,type=env,target=GH_TOKEN
+DropCapability=all
+NoNewPrivileges=true
+ReadOnly=true
+PodmanArgs=--memory=1g --pids-limit=512
+# An authenticated read through the CLI; the image has no shell.
+HealthCmd=["/usr/local/bin/workboard","connections"]
+HealthInterval=1m
+HealthStartPeriod=30s
+HealthOnFailure=kill
+
+[Service]
+Restart=always
+RestartSec=30
+# The first start pulls the image.
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target
