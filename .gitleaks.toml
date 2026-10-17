@@ -1,0 +1,14 @@
+# Read by gitleaks, rh-pre-commit and PwnedAlert. Keep upstream gitleaks'
+# own rules: a repo config that only has an allowlist replaces them.
+[extend]
+  useDefault = true
+
+[allowlist]
+  description = "Known non-secrets"
+  regexes = [
+    # The praxis broker's placeholder credential: clients send it so the
+    # broker substitutes its own token, and it grants nothing by itself.
+    # bot/praxis-broker/praxis/praxis.yaml mirrors upstream byte for byte,
+    # so it is allowed here rather than marked inline.
+    '''praxis-substitute:anthropic''',
+  ]

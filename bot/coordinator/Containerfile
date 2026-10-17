@@ -1,0 +1,25 @@
+# The bot's coordinator: a long-lived Claude Code (or opencode) session
+# running homegit's coordinator skill, in tmux, as the unprivileged "agent"
+# user. See README.md.
+# Build: podman build -t localhost/bot-coordinator bot/coordinator/
+# (after building localhost/bootc-bot-agent from bot/agent.Containerfile)
+FROM localhost/bootc-bot-agent:latest
+
+COPY --chmod=755 entrypoint.sh /usr/local/bin/bot-coordinator-entrypoint
+COPY --chmod=755 render-skills.py /usr/local/bin/render-skills
+COPY --chmod=755 coordinator-loop.py /usr/local/bin/bot-coordinator-loop
+COPY operator-goals.md operator-notes.md backends.toml backend-opencode.md /usr/local/share/bot-coordinator/
+COPY --chmod=755 bot-opencode /usr/local/bin/bot-opencode
+COPY opencode-config.py check-opencode-config.py /usr/local/share/bot-coordinator/
+# opencode's config, generated, as its system-managed config: root-owned,
+# and loaded after every file the session could write (the base image runs
+# as agent).
+USER root
+RUN mkdir -p /etc/opencode && \
+    python3 /usr/local/share/bot-coordinator/opencode-config.py /etc/opencode/opencode.json
+USER agent
+ENV PATH=/home/agent/.local/bin:/home/agent/.cargo/bin:/usr/local/bin:/usr/bin:/bin \
+    BOT_LOGIN=jmarrero-bot \
+    HOMEGIT_URL=https://github.com/jmarrero-forge/homegit.git
+WORKDIR /home/agent
+ENTRYPOINT ["/usr/local/bin/bot-coordinator-entrypoint"]

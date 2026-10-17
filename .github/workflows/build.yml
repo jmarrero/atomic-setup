@@ -6,6 +6,11 @@ on:
   push:
     branches: ["main"]
 
+# Only what the build needs: read the repo, push the image to ghcr.io.
+permissions:
+  contents: read
+  packages: write
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: "bootc-macpro61tc"
@@ -19,10 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Build container image
-        uses: redhat-actions/buildah-build@v2.13
+        uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2.13
         with:
           context: "."
           containerfiles: Containerfile
@@ -31,7 +36,7 @@ jobs:
           oci: true
 
       - name: Push to ghcr.io
-        uses: redhat-actions/push-to-registry@v2.6
+        uses: redhat-actions/push-to-registry@df878026e36864aa6bf9a5b7afe63637cb88ef8c # v2.6
         with:
           image: ${{ env.IMAGE_NAME }}
           tags: "latest"

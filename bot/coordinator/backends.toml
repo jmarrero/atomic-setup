@@ -1,0 +1,93 @@
+# The coordinator's backends, most preferred first. bot-coordinator-loop
+# runs the session on the first available one, and hands off to the next
+# when a backend's usage probe reaches leave_at; it comes back once the
+# preferred one's window resets, or a fresh reading is below return_below.
+# See README.md ("Backends"). Copy this file to
+# ~/.config/bot-harness/backends.toml to change it (the whole file replaces
+# this one), check it with `bot-coordinator-loop check`, and restart the
+# container: the loop reads it when it starts.
+#
+# command: argv, with ${VAR} and ${VAR:-default} from the container's
+#   environment; a nested list is an optional group, left out when one of
+#   its variables is unset.
+# requires_env: variables it can't start without; a backend missing one is
+#   skipped.
+# env: extra variables for its session.
+# clean: files and directories emptied before each start, so that nothing a
+#   session left there carries over; archive: moved aside (the 5 newest
+#   kept) and made afresh; keep: regular files that survive either; relink:
+#   links (link = target) created afresh. Paths take ${VAR:-default}. If
+#   any of that fails, so does the start.
+# notes: Markdown appended to the coordinator skill while it runs, found
+#   next to this file, else in /usr/local/share/bot-coordinator/.
+# probe: where its usage comes from: "file" (bot-heartbeat statusline's
+#   JSON, with window), "copilot" (GitHub Copilot's premium requests, with
+#   the opencode login in auth_env), "command" (argv printing
+#   {"used_percent", "resets_at", "observed_at"}), or "none" (no reading:
+#   available unless marked in ~/.config/bot-harness/backend-marks.toml;
+#   see README.md).
+
+# How long a session gets to record its in-flight work before it is stopped.
+handoff_timeout_minutes = 15
+# The least time between switches back to a more preferred backend.
+min_dwell_minutes = 30
+# How long a new session gets to run `bot-coordinator-loop started` (once
+# it can be typed into) before its backend counts as not working. Its first
+# message (COORDINATOR_PROMPT) and its start note both say to do that first.
+start_ack_timeout_minutes = 10
+
+[[backend]]
+name = "claude"
+command = [
+    "claude", "--dangerously-skip-permissions",
+    ["--model", "${COORDINATOR_MODEL}"],
+    ["--effort", "${COORDINATOR_EFFORT}"],
+    ["${COORDINATOR_PROMPT}"],
+]
+requires_env = ["CLAUDE_CODE_OAUTH_TOKEN"]
+# Its status line saves a reading after each response, so a reading newer
+# than the session's start shows that it works, before its first turn ends.
+proved_by_reading = true
+leave_at = 95
+return_below = 50
+# The plan's 7-day window, as `bot-heartbeat statusline` saves it. It is
+# updated only while this backend runs, so it comes back when the window
+# resets.
+probe = { type = "file", path = "~/.cache/bot-heartbeat/rate-limits.json", window = "seven_day", max_age_minutes = 60 }
+
+[[backend]]
+name = "opencode"
+command = [
+    "opencode", "--auto", "--model", "${BOT_OPENCODE_MODEL}",
+    ["--prompt", "${COORDINATOR_PROMPT}"],
+]
+requires_env = ["OPENCODE_AUTH_CONTENT", "BOT_OPENCODE_MODEL"]
+notes = "backend-opencode.md"
+# Before each start, config, agents, plugins and cached packages a session
+# could have left are removed, and its data directory (its sessions, logs,
+# and accounts that could pull in a remote config) is moved aside, to
+# ~/.local/state/bot-coordinator/archive/opencode/ (the 5 newest are kept),
+# but for the login, which OPENCODE_AUTH_CONTENT overrides anyway. The
+# rendered AGENTS.md is linked afresh.
+clean = [
+    "~/.opencode",
+    "${XDG_CONFIG_HOME:-~/.config}/opencode",
+    "${XDG_CACHE_HOME:-~/.cache}/opencode",
+]
+archive = ["${XDG_DATA_HOME:-~/.local/share}/opencode"]
+keep = ["${XDG_DATA_HOME:-~/.local/share}/opencode/auth.json"]
+relink = { "${XDG_CONFIG_HOME:-~/.config}/opencode/AGENTS.md" = "~/.local/share/bot-skills/AGENTS.md" }
+leave_at = 95
+return_below = 50
+probe = { type = "copilot", auth_env = "OPENCODE_AUTH_CONTENT", interval_minutes = 10 }
+
+[backend.env]
+# Workers as background task subagents, which wake the session when done.
+OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "true"
+# Its config is the image's /etc/opencode/opencode.json (opencode-config.py):
+# only the Copilot provider, no dialogs that would take typed text, the
+# second-opinion and builder agents (see README.md, "The builder under
+# opencode"). opencode loads that system-managed config after everything
+# else, so files the session can write don't override it; no project config
+# at all.
+OPENCODE_DISABLE_PROJECT_CONFIG = "true"

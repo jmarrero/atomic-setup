@@ -1,0 +1,53 @@
+// Access policy for the bot's tailnet (jmarrero-bot.github). Paste the whole
+// file into the Tailscale admin console under Access controls, replacing the
+// default allow-all policy.
+{
+	// jmarrero, invited to this tailnet as a member with his GitHub login
+	// (workboard-hub/README.md). Change both this and the tests below if he
+	// logs in as another identity.
+	"groups": {
+		"group:operator": ["jmarrero@github"],
+	},
+	"tagOwners": {
+		"tag:bot-host":          ["autogroup:admin"],
+		"tag:jmarrero-devspace": ["autogroup:admin"],
+		// The inference broker's own node, a container in its pod on the bot
+		// host (praxis-broker/README.md), and the GitHub Actions runners of
+		// agentic-job runs, which join with the tailnet's OIDC credential.
+		"tag:praxis-broker": ["autogroup:admin"],
+		"tag:agentic-job":   ["autogroup:admin"],
+	},
+	"grants": [
+		// The bot host may SSH to devspaces.
+		{"src": ["tag:bot-host"], "dst": ["tag:jmarrero-devspace"], "ip": ["tcp:22"]},
+		// jmarrero's devices may reach the workboard hub, which `tailscale
+		// serve` puts on the bot host's HTTPS port. Nothing else is allowed:
+		// in particular nothing from a devspace to the bot host, no other
+		// port of the bot host for anyone, and nothing from the bot host or
+		// a devspace to his devices.
+		{"src": ["group:operator"], "dst": ["tag:bot-host"], "ip": ["tcp:443"]},
+		// agentic-job runners may reach the broker's Praxis port, and
+		// nothing else: not the bot host, not a devspace, not each other.
+		// Every other port of the broker's node stays shut here, since its
+		// userspace tailscaled hands whatever is let in to the pod's
+		// loopback. jmarrero's devices may reach the same port, for /usage.
+		{"src": ["tag:agentic-job", "group:operator"], "dst": ["tag:praxis-broker"], "ip": ["tcp:8081"]},
+	],
+	// Tailscale refuses to save a policy that breaks these.
+	"tests": [
+		{"src": "tag:bot-host", "accept": ["tag:jmarrero-devspace:22"], "deny": ["tag:jmarrero-devspace:80", "jmarrero@github:22", "jmarrero@github:443", "tag:praxis-broker:8081"]},
+		{"src": "tag:jmarrero-devspace", "deny": ["tag:bot-host:22", "tag:bot-host:443", "jmarrero@github:22", "jmarrero@github:443"]},
+		{
+			"src":    "jmarrero@github",
+			"accept": ["tag:bot-host:443", "tag:praxis-broker:8081"],
+			"deny":   ["tag:bot-host:22", "tag:bot-host:80", "tag:bot-host:8421", "tag:jmarrero-devspace:22", "tag:praxis-broker:22", "tag:praxis-broker:8080"],
+		},
+		{
+			"src":    "tag:agentic-job",
+			"accept": ["tag:praxis-broker:8081"],
+			"deny":   ["tag:praxis-broker:22", "tag:praxis-broker:8080", "tag:praxis-broker:18080", "tag:bot-host:22", "tag:bot-host:443", "tag:bot-host:18080", "tag:jmarrero-devspace:22", "tag:agentic-job:22", "jmarrero@github:22"],
+		},
+		{"src": "tag:praxis-broker", "deny": ["tag:bot-host:22", "tag:bot-host:443", "tag:jmarrero-devspace:22", "tag:agentic-job:22", "jmarrero@github:22"]},
+		{"src": "tag:jmarrero-devspace", "deny": ["tag:praxis-broker:8081"]},
+	],
+}

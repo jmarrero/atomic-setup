@@ -1,0 +1,13 @@
+[Unit]
+Description=bootc-bot: dispatch GitHub @mentions to AI agents
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+EnvironmentFile=%h/.config/bootc-bot/env
+ExecStart=/usr/bin/python3 %h/development/github/jmarrero/atomic-setup/bot/botd.py
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target
