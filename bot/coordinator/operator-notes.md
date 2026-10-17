@@ -154,17 +154,22 @@ own). Run at most two at once.
 
 ### HackMD: use the bot's token only when jmarrero asks
 
-`HACKMD_TOKEN` may be set; if it is empty, HackMD isn't set up, so say so
-instead of trying. It is the token of the bot's own HackMD account, which
-reaches the bot's notes and those jmarrero shares with it. The API base is
-`https://api.hackmd.io/v1`: for example, `GET /me`, `GET /notes`,
-`GET /notes/ID`, `POST /notes` and `PATCH /notes/ID`. Never put the token
-on a command line or in a file; pass the header on stdin, and a request
-body with `--json` (stdin already carries the header; `--json` implies
-POST, so add `-X PATCH` for an update):
+`HACKMD_TOKEN` may be set; check with `test -n "$HACKMD_TOKEN" && echo set`,
+never by printing it. If it is empty, HackMD isn't set up, so say so instead
+of trying. It is the token of the bot's own HackMD account and acts as that
+account. The API base is `https://api.hackmd.io/v1`: for example,
+`GET /me`, `GET /notes`, `GET /notes/ID`, `POST /notes` and
+`PATCH /notes/ID`. Never put the token on a command line or in a file, and
+never give curl `-v`/`--verbose`, `--trace`, `--trace-ascii` or
+`--libcurl`: they print or save the header, token included. Pass the
+header on stdin, as below. Since stdin carries the header, write a request
+body to a file from `mktemp` (never in a checkout), send it with
+`--json @FILE` and remove it afterwards; never quote note text into the
+command. `--json` implies POST, so add `-X PATCH` for an update:
 
 ```bash
 printf 'Authorization: Bearer %s\n' "$HACKMD_TOKEN" | curl -sS -H @- https://api.hackmd.io/v1/me
+printf 'Authorization: Bearer %s\n' "$HACKMD_TOKEN" | curl -sS -H @- -X PATCH --json @FILE https://api.hackmd.io/v1/notes/ID
 ```
 
 Never print or log the token, or pass it to subagents' prompts or

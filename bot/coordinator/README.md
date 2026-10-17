@@ -31,7 +31,8 @@ answers @mentions.
   `jmarrero-bot-claude-token` (`CLAUDE_CODE_OAUTH_TOKEN`) and
   `jmarrero-bot-copilot-auth` (`OPENCODE_AUTH_CONTENT`), plus, when its
   drop-in is set up, `jmarrero-bot-hackmd-token` (`HACKMD_TOKEN`, see
-  [../SETUP.md](../SETUP.md#2-github-accounts-and-tokens)); the operator
+  [../SETUP.md](../SETUP.md#2-github-accounts-and-tokens); its rules are
+  the "HackMD" section of [operator-notes.md](operator-notes.md)); the operator
   config is `~/.config/bot-harness/operator.json` (its directory is mounted
   read-only, so edits show up without a restart).
 - No `keep-id`: the container's users map to subordinate ids, so an escape
@@ -333,7 +334,7 @@ stay in the run's files and `bot-poll --summary`, which the session reads
 as data. `COORDINATOR_PROMPT` and the operator's notes tell the session
 never to start `bot-poll` itself: a second poll can't take the first's
 lock. If you keep your own `~/.config/bot-harness/notes.md`, copy the
-"Polling", "Backends and handoffs" and "Capacity" sections of
+"Polling", "Backends and handoffs", "Capacity" and "HackMD" sections of
 [`operator-notes.md`](operator-notes.md) into it.
 
 If you're attached and typing when a line comes in, it is appended to what
