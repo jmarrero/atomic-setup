@@ -56,6 +56,12 @@ In this order, on the bot machine, from this checkout:
 
    The tracker uses GitHub's immutable subjects (`gh api repos/jmarrero-forge/tracker/actions/oidc/customization/sub`). A job of a reusable workflow gets the caller's subject, so this admits the agent jobs of the tracker's workflows run from `main`, the ones the dispatch wrapper starts, and nothing from another branch or repository. The credential's Client ID and audience go into jmarrero-forge/actions' `tailscale/tailnets.json` entry for jmarrero-forge ([jmarrero-forge/tracker#20](https://github.com/jmarrero-forge/tracker/issues/20)); neither is a secret.
 
+   Reviews in jmarrero/review, jmarrero's own fork of the review app, need a credential of their own, the same but with the subject
+
+       repo:jmarrero@1894385/review@1423930540:*
+
+   jmarrero/review uses immutable subjects too (`gh api repos/jmarrero/review/actions/oidc/customization/sub`). Its reviews start on pull requests and on `/review` comments, whose subjects differ after the prefix, hence the `*`: it admits any workflow, branch, tag or environment of jmarrero/review, which only jmarrero can change, and the node's `tag:agentic-job` reaches only the broker. Its Client ID goes into jmarrero/review's `TAILSCALE_OAUTH_CLIENT_ID` variable (step 6), since jmarrero-forge/actions' `tailnets.json` entry for jmarrero leaves it to the caller.
+
    Runner nodes must be ephemeral, so that a finished run's node leaves the tailnet with its runner. The credential can't require that; the join does. jmarrero-forge/actions' `tailscale` action (as of jmarrero-forge/actions#1) joins with tailscale/github-action v4.2.0, pinned by commit, which logs in through the OIDC credential with `preauthorized=true&ephemeral=true` and keeps tailscaled's state in memory (`--state=mem:`). Keep it that way when that action changes.
 
 6. **Point the caller at it**, as the tracker's repository variables or the wrapper's defaults:
@@ -64,6 +70,8 @@ In this order, on the bot machine, from this checkout:
        INFERENCE_AUDIENCE=jmarrero-praxis-broker
 
    The [run-token policy](#run-token-policy) admits the tracker's wrapper at the commit its `dispatch.yml` pins, so once the pod is up, runs from the tracker register.
+
+   jmarrero/review's reviews take everything from its repository variables, since the review wrapper has no defaults: the two above, `TAILSCALE_OAUTH_CLIENT_ID` (its credential from step 5) and `TAILSCALE_TAGS=tag:agentic-job`, `AGENT_MODEL` if not the agent's default, and last `AGENT_REVIEW` (the reviewing agent, such as `claude`), which turns reviews on.
 
 ## Verify
 
@@ -85,15 +93,16 @@ The broker caps injected Claude use at 10M weighted tokens per run (upstream: 20
 
 The policy decides which jobs may register runs, by their OIDC token's claims (upstream's INTERNALS.md, "Run tokens" and "Admitting more workflows"). It is [policy/run-token-policy.yaml](policy/run-token-policy.yaml), which the gateway reads when it starts: a change to it takes effect after `git pull` and a restart of the pod (as under [Updating](#updating)), while no run is active, since a restart forgets registered runs. Without the file, `POST /v1/runs` answers 503 and only pass-through requests are served; a policy with no entry stops the gateway at startup.
 
-It has a deployment-specific audience, `jmarrero-praxis-broker`, which the caller's `INFERENCE_AUDIENCE` must match, so that an identity token made out to another praxis broker is no good here. Callers are pinned to the tracker by repository id (1400840502), and only `workflow_dispatch`, which needs write access to the tracker, is admitted. Which entry admits a run depends on which workflow file holds its agent job, since that file is the token's `job_workflow_ref`:
+It has a deployment-specific audience, `jmarrero-praxis-broker`, which the caller's `INFERENCE_AUDIENCE` must match, so that an identity token made out to another praxis broker is no good here. Each entry pins its callers by repository id: the tracker (1400840502), only on `workflow_dispatch`, which needs write access to the tracker, and jmarrero/review (1423930540) for its reviews. Which entry admits a run depends on which workflow file holds its agent job, since that file is the token's `job_workflow_ref`:
 
 - **The tracker's wrapper in jmarrero-forge/actions**, `jmarrero-agentic-job.yml`, whose agent job joins the tailnet ([jmarrero-forge/tracker#20](https://github.com/jmarrero-forge/tracker/issues/20)): a `called_workflows` entry naming the wrapper's file, with the commit the tracker calls it at, `2a2825fa768d` (from jmarrero-forge/actions#1, on its `main`). The tracker's `dispatch.yml` names that full commit in its `uses:`, so the identity token's `job_workflow_ref` ends in it and its `job_workflow_sha` is it, which is what `sha` matches. The entry names the commit rather than a branch, so that a change to what may spend the subscription is a pull request here, which jmarrero merges. The cost is one such pull request, and a restart, each time the tracker's pin moves. With `ref: refs/heads/main` instead, whoever can push the wrapper's `main` (the bot included) would decide what admitted jobs do, with no change here.
 - **agentic-job's complete reusable workflow** (`cgwalters-forge/agentic-job/.github/workflows/agentic-job.yml`) isn't admitted: nothing here calls it, and under `called_workflows` its caller chooses the runner, inputs and setup, so an entry for it would admit more than the wrapper needs.
+- **The review wrapper in jmarrero-forge/actions**, `jmarrero-review.yml`, as jmarrero/review's `review.yml` calls it: a `called_workflows` entry for the commit that file pins, `de62d4a1cd93` (on the wrapper's `main`; it adds jmarrero's entry to `tailscale/tailnets.json`), admitted from jmarrero/review on `pull_request_target` and `issue_comment`. Outsiders can cause those events, so the entry relies on the wrapper's `if:` at that commit and on jmarrero/review's bounds (`workflow/review*.toml` on its `main`) and variables, which only jmarrero can change. They keep upstream's rules: a pull request is reviewed when opened and on each push only when its author is the owner, a member or a collaborator (there, jmarrero alone), whoever pushes, so the bot's pushes to a pull request jmarrero opened from one of its branches are reviewed too; `/review` is taken only from someone with write access. Its pin moves as the tracker's does, below, with jmarrero/review's `review.yml` in place of the tracker's `dispatch.yml`.
 - **An agent job written into a tracker workflow itself** would need a `workflows` entry, its exact `job_workflow_ref` with `repository_ids: [1400840502]`, since that workflow is in the run's own repository.
 
 **Moving the wrapper's pin.** A new wrapper commit on jmarrero-forge/actions' `main` reaches runs only once the tracker's `dispatch.yml` names it, and the broker admits it only once the policy does. To move without a gap, add a second `called_workflows` entry, the same but for the new full commit id, by a pull request here, then pull and restart the pod while no run is active. Then move the tracker's `uses:` to that commit, and once it has merged, drop the old entry the same way. Check first that the commit is on the wrapper's `main`: `gh api repos/jmarrero-forge/actions/compare/SHA...main -q .status` says `ahead` or `identical`.
 
-agentic-job's `review.yml` runs on `pull_request_target` and `issue_comment` and joins cgwalters' tailnet itself, so no entry admits it. Never add `unproven` or `any_workflow`: they let any tailnet peer, or any workflow of an admitted repository, spend.
+agentic-job's own `review.yml` runs on `pull_request_target` and `issue_comment` and joins cgwalters' tailnet itself, so no entry admits it; jmarrero/review calls the wrapper above instead. Never add `unproven` or `any_workflow`: they let any tailnet peer, or any workflow of an admitted repository, spend.
 
 Whatever admits a run, whoever can push a branch to the tracker and dispatch it can spend within the caps, the bot account included. The caps bound that, not the policy.
 

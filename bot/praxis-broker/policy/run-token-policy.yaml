@@ -7,13 +7,14 @@
 # decides who spends. A policy with no entry stops the gateway at startup.
 #
 # Runs are dispatched from jmarrero-forge/tracker (repository id 1400840502,
-# `gh api repos/jmarrero-forge/tracker -q .id`). A job of a reusable
-# workflow has an identity token whose job_workflow_ref names the called
-# workflow and whose repository_id is the caller's, so each entry names a
-# called workflow at one commit and admits it only from the tracker, and
-# only on workflow_dispatch: dispatch.yml and poll's dispatches
-# (`gh workflow run`) are that event, and starting one needs write access
-# to the tracker.
+# `gh api repos/jmarrero-forge/tracker -q .id`), and reviews run in
+# jmarrero/review (1423930540), jmarrero's own fork of the review app. A
+# job of a reusable workflow has an identity token whose job_workflow_ref
+# names the called workflow and whose repository_id is the caller's, so
+# each entry names a called workflow at one commit, the one repository it
+# may be called from, and its events. Dispatches are workflow_dispatch:
+# dispatch.yml and poll's dispatches (`gh workflow run`) are that event,
+# and starting one needs write access to the tracker.
 
 # This deployment's own audience, so that an identity token made out to
 # another praxis broker (upstream's default is praxis-credential-broker)
@@ -37,6 +38,24 @@ called_workflows:
     callers:
       repository_ids: [1400840502]
     events: [workflow_dispatch]
+  # The review wrapper in jmarrero-forge/actions, as jmarrero/review's
+  # review.yml calls it, at the full commit that file pins: de62d4a1cd93,
+  # on that repository's main, which adds jmarrero's tailnet entry. Reviews
+  # start on pull_request_target and issue_comment, events outsiders can
+  # cause, so this entry relies on the wrapper's `if:` at that commit and
+  # on jmarrero/review's bounds (workflow/review*.toml on its main) and
+  # variables, which only jmarrero can change. They keep upstream's rules:
+  # a pull request is reviewed when opened and on each push only when its
+  # author is the owner, a member or a collaborator (on jmarrero/review,
+  # jmarrero alone), whoever pushes, so jmarrero-bot's pushes to a pull
+  # request he opened from one of its branches are reviewed too; `/review`
+  # is taken only from someone with write access. To move the pin, do as
+  # for the tracker's (README.md, "Moving the wrapper's pin").
+  - workflow: jmarrero-forge/actions/.github/workflows/jmarrero-review.yml
+    sha: de62d4a1cd93433538c59cf8d18bb1dbe39ce180
+    callers:
+      repository_ids: [1423930540]
+    events: [pull_request_target, issue_comment]
   #
   # Not admitted: agentic-job's complete reusable workflow
   # (cgwalters-forge/agentic-job/.github/workflows/agentic-job.yml), which
