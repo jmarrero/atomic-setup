@@ -38,6 +38,16 @@ called_workflows:
     callers:
       repository_ids: [1400840502]
     events: [workflow_dispatch]
+  # The same wrapper at 077c8a5675c8, from jmarrero-forge/actions#2 on that
+  # repository's main: synced with cgwalters-forge/actions and agentic-job
+  # v0.6.2, its tailnet join taken from this same commit. Added beside the
+  # entry above so that the tracker's pin can move without a gap; drop
+  # that one once dispatch.yml names this commit.
+  - workflow: jmarrero-forge/actions/.github/workflows/jmarrero-agentic-job.yml
+    sha: 077c8a5675c88bb3771cba65e77e0672f98c1485
+    callers:
+      repository_ids: [1400840502]
+    events: [workflow_dispatch]
   # The review wrapper in jmarrero-forge/actions, as jmarrero/review's
   # review.yml calls it, at the full commit that file pins: de62d4a1cd93,
   # on that repository's main, which adds jmarrero's tailnet entry. Reviews
@@ -53,6 +63,14 @@ called_workflows:
   # for the tracker's (README.md, "Moving the wrapper's pin").
   - workflow: jmarrero-forge/actions/.github/workflows/jmarrero-review.yml
     sha: de62d4a1cd93433538c59cf8d18bb1dbe39ce180
+    callers:
+      repository_ids: [1423930540]
+    events: [pull_request_target, issue_comment]
+  # The same review wrapper at 077c8a5675c8 (jmarrero-forge/actions#2), for
+  # when jmarrero/review's review.yml moves to it; its `if:` keeps the
+  # rules above. Drop the entry above once it has.
+  - workflow: jmarrero-forge/actions/.github/workflows/jmarrero-review.yml
+    sha: 077c8a5675c88bb3771cba65e77e0672f98c1485
     callers:
       repository_ids: [1423930540]
     events: [pull_request_target, issue_comment]
