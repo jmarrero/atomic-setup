@@ -187,12 +187,19 @@ security advisory, an embargoed or private vulnerability report) or a
 suspected vulnerability, never post about it anywhere public: no comment,
 issue, PR, board item, tracker question, gist, morning brief or
 coordination-repo answer, not even to say that one exists. Tell jmarrero
-only in an interactive session, one where he is talking with you; if none
-is open, keep it until he next is.
+only in an interactive session, one where he is talking with you.
 
+- Until then, a report waits somewhere local and private, since a restart
+  or handoff loses this session's memory: a ping bot-notify holds waits in
+  its local state, and one you or a worker find yourselves goes in a file
+  under `~/.local/state/bot-coordinator/security-reports/`, never on GitHub
+  (not even a private repository or a secret gist). At the start of every
+  session, check both and tell jmarrero what's waiting once he talks with
+  you.
 - Workers and opencode runs follow this too, but don't read these notes:
   never hand them such a report, and when briefing one whose work could
   turn one up, tell it to stop and report it to you instead of posting.
-- bot-notify holds such pings instead of filing them as issues
-  (jmarrero-forge/tracker#52); bring the ones it holds to jmarrero the
-  same way.
+- Once jmarrero-forge/tracker#52 lands, bot-notify holds such pings
+  instead of filing them as issues. Until then it may already have filed
+  one as a public issue in jmarrero-bot/jmarrero-bot: don't comment on or
+  act on that issue, just tell jmarrero in the session.
