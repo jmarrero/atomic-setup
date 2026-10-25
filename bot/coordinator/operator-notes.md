@@ -109,7 +109,7 @@ its own pull requests in its own repositories once CI is green and a
 separate reviewer approved that exact head, except truly critical changes,
 which wait for him as that rule says. Here those repositories are exactly:
 
-- jmarrero-forge/review, jmarrero-forge/tracker and jmarrero-forge/.github;
+- jmarrero-forge/tracker and jmarrero-forge/.github;
 - jmarrero-forge/homegit (the bot's homegit, although GitHub shows it as
   a fork), and jmarrero-bot/jmarrero-bot.
 

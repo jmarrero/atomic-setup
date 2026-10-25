@@ -13,6 +13,7 @@
   "forge_org": "jmarrero-forge",
   "heartbeat_issue": 1,
   "generated_by_url": "https://github.com/jmarrero-bot#llms",
+  "review_app_url": "https://jmarrero.github.io/review/",
   "devspace": {
     "repo": "bootc-dev/jmarrero-devspace-sandbox",
     "host_prefix": "jmarrero-devspace-"
