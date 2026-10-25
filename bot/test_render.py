@@ -52,7 +52,7 @@ class RenderTest(unittest.TestCase):
             self.assertNotIn(wrong, text)
         # Everything still naming cgwalters is one of his own things, kept on purpose.
         allowed = re.compile(r"cgwalters-forge/(harness-coordination|tracker#\d+|review|workflow-compiler"
-                             r"|agentic-job|cgwalters-devspace-sandbox#\d+)|cgwalters-forge\.github\.io"
+                             r"|agentic-job|cgwalters-devspace-sandbox#\d+)"
                              r"|cgwalters-bot/(praxis-credential-broker|debug-bootc|ostree-missing-refs)"
                              r"|gist\.github\.com/cgwalters-bot|users/cgwalters-bot/projects/2"
                              r"|cgwalters' harness|cgwalters-bot (and|or) cgwalters|`cgwalters-bot` (and|or) `cgwalters`"
@@ -60,6 +60,17 @@ class RenderTest(unittest.TestCase):
         for line in text.splitlines():
             rest = allowed.sub("", line)
             self.assertNotRegex(rest, r"(?i)cgwalters", line)
+
+    def test_review_app_is_ours(self):
+        text = "\n".join(self.read(os.path.join(root, f))
+                         for root, _, files in os.walk(self.out) for f in files)
+        self.assertNotIn("cgwalters-forge.github.io", text)
+        self.assertNotIn("review app (cgwalters-forge/review)", text)
+        self.assertIn(f"review app ({CONFIG['review_app_url']})", self.read("skills/coordinator/reviewer-preamble.md"))
+        self.assertIn("review app (jmarrero/review)", self.read("skills/workstream/SKILL.md"))
+        workstream = re.sub(r"\s+", " ", self.read("skills/workstream/SKILL.md"))
+        self.assertNotIn("cgwalters-forge/review", workstream)
+        self.assertIn(f"own repositories, such as {CONFIG['forge_org']}/tracker)", workstream)
 
     def test_goals_are_the_operators(self):
         coordinator = self.read("skills/coordinator/SKILL.md")

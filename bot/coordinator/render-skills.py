@@ -30,13 +30,16 @@ import subprocess
 import sys
 
 # What really is cgwalters' and must stay so: his repositories, issues, gists,
-# board, review app, and the coordination channel between the two harnesses.
+# board, and the coordination channel between the two harnesses. His review
+# app's repository stays too, except where the skills name it as the app the
+# operator uses or as an example of the forge's repositories (substitutions()
+# points those, and its URL, at ours).
 KEEP = [
     r"cgwalters-forge/harness-coordination",
     r"cgwalters-forge/tracker#(?!176\b)\d+",
     r"cgwalters-forge/cgwalters-devspace-sandbox#\d+",
-    r"cgwalters-forge/(?:review|workflow-compiler|agentic-job)\b",
-    r"cgwalters-forge\.github\.io/review/?",
+    r"(?<!review app \()(?<!such as\n)(?<!such as )cgwalters-forge/review\b",
+    r"cgwalters-forge/(?:workflow-compiler|agentic-job)\b",
     r"cgwalters-bot/(?:praxis-credential-broker|debug-bootc-to-disk-virtiofsd|ostree-missing-refs)\b",
     r"gist\.github\.com/cgwalters-bot/[0-9a-f]+",
     r"users/cgwalters-bot/projects/2",
@@ -96,10 +99,23 @@ def sections(goals, cfg):
     ]
 
 
+def review_repo(url):
+    """The repository a GitHub Pages URL is published from, else the URL."""
+    m = re.fullmatch(r"https://([A-Za-z0-9-]+)\.github\.io/([A-Za-z0-9._-]+)/?", url)
+    return f"{m[1]}/{m[2]}" if m else url
+
+
 def substitutions(cfg):
     op, bot = cfg["operator"], cfg["bot"]
     skills = "~/.agents/skills/"
+    app = cfg["review_app_url"]
     return [
+        # The review app the operator uses: ours, by URL and by repository.
+        (r"https://cgwalters-forge\.github\.io/review/?", app),
+        (r"review app \(cgwalters-forge/review\)", f"review app ({review_repo(app)})"),
+        # The workstream skill's example of the forge's own repositories:
+        # the review app isn't one here, the tracker is.
+        (r"(?:(?<=such as )|(?<=such as\n))cgwalters-forge/review\b", cfg["tracker_repo"]),
         # cgwalters' heartbeat issue: ours.
         (r"cgwalters-forge/tracker#176\b", f"{cfg['tracker_repo']}#{cfg['heartbeat_issue']}"),
         # Paths to the skills in the homegit checkout: the rendered copies.
