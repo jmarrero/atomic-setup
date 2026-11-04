@@ -194,13 +194,11 @@ Builds and tests run only on ephemeral RHEL 10 runners from bootc-dev's
    must allow the repo. It's set to all repositories, public ones included.
 5. The tailnet, logged in to Tailscale as the bot (here `jmarrero-bot.github`,
    with MagicDNS on; it holds the bot machine, the devspaces, and jmarrero's
-   devices for the workboard hub):
+   devices for the broker's usage):
    - On the bot machine: `sudo tailscale up`, logging in via the printed URL.
    - Access controls → JSON editor: replace the default allow-all policy
      with [`tailscale-policy.hujson`](tailscale-policy.hujson). It lets
-     `tag:bot-host` reach `tag:jmarrero-devspace` on TCP 22, jmarrero's
-     devices reach the workboard hub on the bot machine's TCP 443
-     ([`workboard-hub/README.md`](workboard-hub/README.md)), and
+     `tag:bot-host` reach `tag:jmarrero-devspace` on TCP 22, and
      agentic-job runners and jmarrero's devices reach the inference
      broker's own node on TCP 8081 ([§10](#10-the-inference-broker)), and
      nothing else; its tests reject any later edit that lets a devspace or
