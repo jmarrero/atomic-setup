@@ -8,17 +8,17 @@ copies them literally instead (it signed a comment with his Generated-by
 link), so the coordinator gets copies with this operator's values filled in.
 homegit stays as cgwalters writes it, which keeps the fork easy to update.
 
-  render-skills.py HOMEGIT DEST GOALS [NOTES] [--backend NAME=[BACKEND-NOTES]]...
+  render-skills.py HOMEGIT DEST GOALS [--skills NAME,...] [--session NOTES]
 
 writes DEST/skills/<name>/... (from dotfiles/.agents/skills), DEST/AGENTS.md
 and DEST/agents/builder.md, with values from `bot-operator --json`. GOALS is
-a Markdown file replacing cgwalters' goals and priority rules; NOTES, the
-operator's own notes, is appended to the coordinator skill. Each --backend
-also writes skills/coordinator/SKILL.md.NAME, the coordinator skill with
-that backend's notes appended (say, how its tools differ from Claude
-Code's), which bot-coordinator-loop points SKILL.md at while NAME runs. What
-still names cgwalters afterwards (links to his own repositories, issues and
-the coordination channel, kept on purpose) is listed on stderr.
+a Markdown file replacing cgwalters' goals and priority rules. --skills
+keeps only the named skills. --session also writes DEST/CLAUDE.md, the
+interactive session's instructions: AGENTS.md up to its "Commit
+attribution" section, whose rules and the rest name homegit's loop tools,
+then NOTES as written. What still names cgwalters afterwards (links to his
+own repositories, issues and the coordination channel, kept on purpose) is
+listed on stderr.
 """
 
 import argparse
@@ -160,11 +160,16 @@ def render(text, subs, keep_re):
     return re.sub(r"\x00(\d+)\x00", lambda m: kept[int(m.group(1))], text)
 
 
-def backend_arg(value):
-    name, sep, path = value.partition("=")
-    if not sep or not re.fullmatch(r"[a-z][a-z0-9-]{0,31}", name):
-        raise argparse.ArgumentTypeError(f"expected NAME=[NOTES], not {value!r}")
-    return name, path
+# Where the session's CLAUDE.md stops taking homegit's AGENTS.md: from here
+# on it names the loop's tools (bot-pr, bot-land, the workstream skill).
+SESSION_CUT = "\n## Commit attribution\n"
+
+
+def skill_list(value):
+    names = value.split(",")
+    if not all(re.fullmatch(r"[a-z][a-z0-9-]{0,63}", n) for n in names):
+        raise argparse.ArgumentTypeError(f"expected NAME,..., not {value!r}")
+    return names
 
 
 def main():
@@ -172,13 +177,12 @@ def main():
     parser.add_argument("homegit")
     parser.add_argument("dest")
     parser.add_argument("goals")
-    parser.add_argument("notes", nargs="?")
-    parser.add_argument("--backend", type=backend_arg, action="append", default=[])
+    parser.add_argument("--skills", type=skill_list)
+    parser.add_argument("--session", metavar="NOTES")
     args = parser.parse_args()
     homegit, dest, goals_file = args.homegit, args.dest, args.goals
-    notes = open(args.notes).read() if args.notes else ""
     # Read first, so that a missing file fails before anything is written.
-    backends = [(name, open(path).read() if path else "") for name, path in args.backend]
+    session = open(args.session).read() if args.session else None
     cfg = json.loads(subprocess.run(["bot-operator", "--json"], check=True,
                                     capture_output=True, text=True).stdout)
     goals = open(goals_file).read()
@@ -202,9 +206,6 @@ def main():
             sys.exit(f"render-skills: expected one match of {pattern[:60]!r} in {rel}, found {n}")
         open(path, "w").write(new)
 
-    if notes.strip():
-        # After rendering, so the operator's text is taken as written.
-        notes_path = os.path.join(tmp, "skills/coordinator/SKILL.md")
     leftovers = []
     for root, _, files in os.walk(tmp):
         for name in files:
@@ -217,14 +218,23 @@ def main():
                 if re.search(r"(?i)cgwalters|colin|verbum", line):
                     leftovers.append(f"{os.path.relpath(path, tmp)}:{i}: {line.strip()[:120]}")
 
-    if notes.strip():
-        with open(notes_path, "a") as f:
-            f.write("\n" + notes.strip() + "\n")
-    coordinator = os.path.join(tmp, "skills/coordinator/SKILL.md")
-    for name, text in backends:
-        # As written, like the operator's notes.
-        with open(coordinator) as f, open(f"{coordinator}.{name}", "w") as out:
-            out.write(f.read() + ("\n" + text.strip() + "\n" if text.strip() else ""))
+    if args.skills is not None:
+        skills_dir = os.path.join(tmp, "skills")
+        missing = sorted(set(args.skills) - set(os.listdir(skills_dir)))
+        if missing:
+            sys.exit(f"render-skills: homegit has no skill {', '.join(missing)}")
+        for name in os.listdir(skills_dir):
+            if name not in args.skills:
+                shutil.rmtree(os.path.join(skills_dir, name))
+        leftovers = [line for line in leftovers
+                     if not line.startswith("skills/") or line.split("/")[1] in args.skills]
+    if session is not None:
+        agents = open(os.path.join(tmp, "AGENTS.md")).read()
+        if agents.count(SESSION_CUT) != 1:
+            sys.exit(f"render-skills: expected one {SESSION_CUT.strip()!r} section in AGENTS.md")
+        # The notes after rendering, so the operator's text is taken as written.
+        with open(os.path.join(tmp, "CLAUDE.md"), "w") as f:
+            f.write(agents[:agents.index(SESSION_CUT)].rstrip() + "\n\n" + session.strip() + "\n")
     shutil.rmtree(dest, ignore_errors=True)
     os.rename(tmp, dest)
     print(f"render-skills: rendered for {cfg['operator']['login']}/{cfg['bot']['login']}; "

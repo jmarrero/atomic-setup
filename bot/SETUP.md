@@ -13,8 +13,8 @@ step, in order, so the setup can be checked or redone by someone else; see
 | Bot account | A separate GitHub user that does all the bot's work | `jmarrero-bot` |
 | Forge org | Forks where the bot opens draft PRs for the operator's review; the tracker; the Workstream board | `jmarrero-forge` |
 | botd | Answers `@jmarrero-bot <agent> <request>` mentions by running the agent in a disposable, credential-free container | `bot/botd.py`, systemd user service |
-| Coordinator | Long-lived Claude Code session running homegit's `coordinator` skill: polls, moves the board, dispatches workers | `bot/coordinator/`, Quadlet |
-| homegit | cgwalters' harness (tools and skills), configured by an operator config, run unmodified from a fork | `jmarrero-forge/homegit` |
+| Coordinator | Since cutover (jmarrero-forge/tracker#42), a plain interactive Claude Code session jmarrero attaches to; the board, dispatch and PR follow-up run as hosted workflows in jmarrero-forge/tracker | `bot/coordinator/`, Quadlet |
+| homegit | cgwalters' former harness (tools and skills), configured by an operator config, run unmodified from a fork; frozen, and only its devspace and git tools are still used | `jmarrero-forge/homegit` |
 | Devspaces | Ephemeral RHEL 10 runners (bootc-dev's `rhel10` group) where all builds and tests run, reached over a tailnet | `bootc-dev/jmarrero-devspace-sandbox` |
 | Inference broker | cgwalters' praxis-credential-broker: agentic-job runs reach Claude through it, on the operator's subscription, capped per run | `bot/praxis-broker/`, Quadlet pod with its own tailnet node |
 
@@ -108,14 +108,10 @@ The machine runs only LLM agents and the bot; no manual commits come from it.
 6. Optionally, give the coordinator the API token of the bot's own HackMD
    account, so it can use HackMD's API (`https://api.hackmd.io/v1`) as that
    account. Signed in to HackMD as the bot, create it under Settings → API →
-   Create API token. The coordinator's rules for it are the "HackMD" section
-   of [operator-notes.md](coordinator/operator-notes.md), so make sure the
-   coordinator has them first: if this host has
-   `~/.config/bot-harness/notes.md` (§8), that copy replaces the image's
-   notes, so reinstall it or copy the section into it; otherwise rebuild the
-   coordinator image (§8) if it predates that section. Then check the token,
-   make it a podman secret, and pass it to the coordinator in a quadlet
-   drop-in, so a host without it still starts:
+   Create API token. The session's rules for it are the "HackMD" bullet of
+   [session.md](coordinator/session.md), which the image carries. Check the
+   token, make it a podman secret, and pass it to the coordinator in a
+   quadlet drop-in, so a host without it still starts:
 
        read -rs TOK
        printf 'Authorization: Bearer %s\n' "$TOK" | curl -sS -o /dev/null -w '%{http_code}\n' -H @- https://api.hackmd.io/v1/me   # 200
@@ -292,14 +288,16 @@ security model.
        journalctl --user -u bootc-bot -f
 
 Trigger it with `@jmarrero-bot claude <request>` or
-`@jmarrero-bot opencode <request>` at the start of a comment line. Any other
-mention of the bot by the operator goes to the coordinator instead, as work
-on the board; the two share the bot's notifications without stepping on each
-other ([README.md](README.md#botd-and-the-coordinator)). When you add or
-rename a botd agent, update `BOT_NOTIFY_SKIP_COMMANDS` in
-`coordinator/bot-coordinator.container` to match.
+`@jmarrero-bot opencode <request>` at the start of a comment line. Since
+cutover nothing else reads the bot's notifications
+([README.md](README.md#botd-and-the-coordinator)).
 
 ## 7. homegit
+
+*History: this is how homegit's tools were set up for the loop that ran
+before cutover (jmarrero-forge/tracker#42). Since then the coordinator
+links only `bot-devspace`, `bot-git`, `bot-operator` and
+`bot-review-guide` from it.*
 
 homegit's tools take an operator config, so they run unmodified from a fork
 ([docs/bootstrap.md](https://github.com/jmarrero-forge/homegit/blob/main/docs/bootstrap.md)).
@@ -348,20 +346,9 @@ homegit's tools take an operator config, so they run unmodified from a fork
 
 ## 8. The coordinator
 
-See [coordinator/README.md](coordinator/README.md). It keeps its own homegit
-clone in its home volume, so the clone in §7 is only for checks. It uses
-homegit's skills rendered for this operator, with the goals in
-`~/.config/bot-harness/goals.md`:
-
-    install -m 644 bot/coordinator/operator-goals.md ~/.config/bot-harness/goals.md
-    install -m 644 bot/coordinator/operator-notes.md ~/.config/bot-harness/notes.md
-
-The notes also tell it when to hand reviews and well-defined work to
-opencode (`bot-opencode`, with the Copilot login from §5). With that login,
-opencode also takes over coordinating when Claude's weekly usage reaches
-95%, until it resets; to change the backends or thresholds:
-
-    install -m 644 bot/coordinator/backends.toml ~/.config/bot-harness/backends.toml
+The bot's interactive session; see [coordinator/README.md](coordinator/README.md).
+It keeps its own homegit clone in its home volume, so the clone in §7 is
+only for checks. Since cutover it runs no loop: it waits for you to attach.
 
     podman build -t localhost/bot-coordinator bot/coordinator/
     mkdir -p ~/.config/containers/systemd
@@ -369,9 +356,8 @@ opencode also takes over coordinating when Claude's weekly usage reaches
     systemctl --user daemon-reload && systemctl --user start bot-coordinator
     podman exec -it bot-coordinator tmux attach -t coordinator   # Ctrl-b d detaches
 
-It starts at boot and starts working on its own (`COORDINATOR_PROMPT`), and
-systemd restarts it if the session ends; `systemctl --user stop
-bot-coordinator` stops it.
+It starts at boot, and systemd starts a fresh session if one ends;
+`systemctl --user stop bot-coordinator` stops it.
 
 ## 9. Security notes
 
@@ -383,8 +369,8 @@ bot-coordinator` stops it.
   [README.md](README.md#security-model).
 - **The coordinator** holds the bot's GitHub token and runs Claude with
   permission prompts skipped, the same trade-off cgwalters' setup makes. It
-  acts only on the operator's requests (homegit's `bot-notify`), and only
-  the operator's approval of an exact head sends work upstream. It doesn't
+  acts only on what the operator asks in the session, and only the
+  operator's approval of an exact head sends work upstream. It doesn't
   map to your host user. With the HackMD drop-in (§2) it also holds the
   bot's HackMD token, which can do through HackMD's API whatever the bot's
   HackMD account can.
