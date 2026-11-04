@@ -11,8 +11,9 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 RENDER = os.path.join(HERE, "coordinator", "render-skills.py")
 GOALS = os.path.join(HERE, "coordinator", "operator-goals.md")
-NOTES = os.path.join(HERE, "coordinator", "operator-notes.md")
-BACKEND_NOTES = os.path.join(HERE, "coordinator", "backend-opencode.md")
+SESSION = os.path.join(HERE, "coordinator", "session.md")
+# What the entrypoint keeps.
+SESSION_SKILLS = ["devspace-work", "commit-review", "ast-explore", "codegraph"]
 HOMEGIT = os.environ.get("HOMEGIT", os.path.expanduser("~/development/github/jmarrero-forge/homegit"))
 CONFIG = json.load(open(os.path.join(HERE, "operator.json")))
 
@@ -32,9 +33,13 @@ class RenderTest(unittest.TestCase):
         os.chmod(stub, stat.S_IRWXU)
         cls.out = os.path.join(cls.tmp, "rendered")
         env = dict(os.environ, PATH=f"{cls.tmp}:{os.environ['PATH']}")
-        cls.proc = subprocess.run([sys.executable, RENDER, HOMEGIT, cls.out, GOALS, NOTES,
-                                   "--backend=claude=", f"--backend=opencode={BACKEND_NOTES}"],
+        cls.proc = subprocess.run([sys.executable, RENDER, HOMEGIT, cls.out, GOALS],
                                   env=env, capture_output=True, text=True)
+        # As the entrypoint renders them.
+        cls.session_out = os.path.join(cls.tmp, "session")
+        cls.session_proc = subprocess.run([sys.executable, RENDER, HOMEGIT, cls.session_out, GOALS,
+                                           "--session", SESSION, "--skills", ",".join(SESSION_SKILLS)],
+                                          env=env, capture_output=True, text=True)
 
     def read(self, rel):
         return open(os.path.join(self.out, rel)).read()
@@ -83,17 +88,31 @@ class RenderTest(unittest.TestCase):
         self.assertIn("coordination questions from cgwalters-bot and cgwalters", self.read("skills/bot-notify/SKILL.md"))
         self.assertIn("the channel with cgwalters' harness", self.read("skills/coordinator/worker-preamble.md"))
 
-    def test_operator_notes_are_appended(self):
-        coordinator = self.read("skills/coordinator/SKILL.md")
-        self.assertTrue(coordinator.rstrip().endswith(open(NOTES).read().strip()))
-        self.assertIn("bot-opencode", coordinator)
+    def test_session_renders(self):
+        self.assertEqual(self.session_proc.returncode, 0, self.session_proc.stderr)
+        self.assertEqual(sorted(os.listdir(os.path.join(self.session_out, "skills"))), sorted(SESSION_SKILLS))
+        self.assertFalse(os.path.exists(os.path.join(self.out, "CLAUDE.md")))
 
-    def test_a_coordinator_skill_per_backend(self):
-        coordinator = self.read("skills/coordinator/SKILL.md")
-        self.assertEqual(self.read("skills/coordinator/SKILL.md.claude"), coordinator)
-        opencode = self.read("skills/coordinator/SKILL.md.opencode")
-        self.assertTrue(opencode.startswith(coordinator))
-        self.assertTrue(opencode.rstrip().endswith(open(BACKEND_NOTES).read().strip()))
+    def test_session_instructions_name_no_loop_duty(self):
+        claude = open(os.path.join(self.session_out, "CLAUDE.md")).read()
+        notes = open(SESSION).read().strip()
+        self.assertTrue(claude.rstrip().endswith(notes))
+        homegit_part = claude[:-len(notes)]
+        self.assertTrue(open(os.path.join(self.session_out, "AGENTS.md")).read().startswith(homegit_part.rstrip()))
+        self.assertEqual(claude.count("## Commit attribution"), 1)
+        for loop in ("bot-pr", "bot-land", "bot-notify", "bot-board", "bot-watch", "bot-poll",
+                     "workstream", "upstream-pr", "coordinator skill", "Workstream"):
+            self.assertNotIn(loop, homegit_part, loop)
+        self.assertNotRegex(claude, r"(?i)cgwalters-bot|walters@|Colin")
+
+    def test_unknown_session_skill_fails(self):
+        env = dict(os.environ, PATH=f"{self.tmp}:{os.environ['PATH']}")
+        out = os.path.join(self.tmp, "bad")
+        proc = subprocess.run([sys.executable, RENDER, HOMEGIT, out, GOALS, "--skills", "devspace-work,nope"],
+                              env=env, capture_output=True, text=True)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("no skill nope", proc.stderr)
+        self.assertFalse(os.path.exists(out))
 
     def test_checkout_paths_are_the_bots_clones(self):
         # The coordinator's clones live under ~/src/github/BOT, never under

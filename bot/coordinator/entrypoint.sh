@@ -1,69 +1,62 @@
 #!/bin/bash
-# Prepare the bot's home from homegit, then hand over to bot-coordinator-loop,
-# which runs the coordinator session in tmux on the first available backend
-# (backends.toml) until it ends. The home directory is a persistent volume:
-# clones, the sessions, caches and bot-devspace's keys survive restarts.
+# Prepare the bot's home, then run one plain interactive Claude Code session
+# in tmux for jmarrero to attach to, until it ends. Nothing here polls or
+# wakes it: since cutover (jmarrero-forge/tracker#42, #44) the tracker's
+# hosted pass runs the board, dispatch and pull request follow-up, and this
+# session does what has no hosted path, when asked. The home directory is a
+# persistent volume: clones, the sessions, caches and bot-devspace's keys
+# survive restarts.
 #   podman exec -it bot-coordinator tmux attach -t coordinator
 set -euo pipefail
 
 : "${BOT_LOGIN:?}" "${HOMEGIT_URL:?}" "${GH_TOKEN:?GH_TOKEN secret missing}"
-# The backends (each one's secret is checked there): fail early on a bad
-# config, or when none can start.
-bot-coordinator-loop check
+: "${CLAUDE_CODE_OAUTH_TOKEN:?CLAUDE_CODE_OAUTH_TOKEN secret missing}"
 clones=$HOME/src/github/$BOT_LOGIN
 homegit=$clones/homegit
+share=/usr/local/share/bot-coordinator
 log() { echo "bot-coordinator: $*" >&2; }
 
-mkdir -p "$clones" "$HOME/.local/bin" "$HOME/.agents" "$HOME/.claude/skills" "$HOME/.claude/agents"
+mkdir -p "$clones" "$HOME/.local/bin" "$HOME/.agents" "$HOME/.claude/skills"
 
-# homegit lives in the volume, where bot-poll's sweeps `git pull` it.
+# homegit is frozen (#44): only the tools below are linked, and its
+# upstream-policy records read. Links to its other tools, and the loop's
+# bot-poll, are removed from earlier starts, so the loop can't be run here.
 if [ ! -d "$homegit/.git" ]; then
     log "cloning $HOMEGIT_URL"
     git clone --quiet "$HOMEGIT_URL" "$homegit"
 else
     git -C "$homegit" pull --quiet --ff-only || log "warning: homegit pull failed; using what's there"
 fi
+find "$HOME/.local/bin" -maxdepth 1 -lname '*/homegit/bin/*' -delete
+rm -f "$HOME/.cargo/bin/bot-poll" "$HOME/.cargo/bot-poll.rev"
+for tool in bot-devspace bot-git bot-operator bot-review-guide; do
+    ln -sfr "$homegit/bin/$tool" "$HOME/.local/bin/$tool"
+done
 
-# The tools, as docs/bootstrap.md says: bin/ as symlinks, never homegit's
-# dotfiles (cgwalters' .bashrc, .gitconfig).
-(cd "$homegit" && ./install-bin.sh)
-# The skills, AGENTS.md and the builder subagent, rendered for this operator
-# (render-skills: homegit's text spells out cgwalters' names and goals, which
-# the model sometimes copies). Rendered again on every start, after the pull.
+# The session's instructions and the few skills it keeps, rendered for this
+# operator (see README.md).
 goals=$HOME/.config/bot-harness/goals.md
-test -s "$goals" || goals=/usr/local/share/bot-coordinator/operator-goals.md
-notes=$HOME/.config/bot-harness/notes.md
-test -s "$notes" || notes=/usr/local/share/bot-coordinator/operator-notes.md
+test -s "$goals" || goals=$share/operator-goals.md
 rendered=$HOME/.local/share/bot-skills
-# Plus a variant of the coordinator skill per backend, with its notes.
-backend_args=$(bot-coordinator-loop render-args)
-mapfile -t backend_args <<<"$backend_args"
-render-skills "$homegit" "$rendered" "$goals" "$notes" "${backend_args[@]}"
+render-skills "$homegit" "$rendered" "$goals" --session "$share/session.md" \
+    --skills devspace-work,commit-review,ast-explore,codegraph
 ln -sfn "$rendered/skills" "$HOME/.agents/skills"
 rm -f "$HOME"/.claude/skills/*
 for skill in "$rendered"/skills/*/; do
     ln -sfn "$skill" "$HOME/.claude/skills/$(basename "$skill")"
 done
-ln -sfn "$rendered/AGENTS.md" "$HOME/.claude/CLAUDE.md"
-mkdir -p "$HOME/.config/opencode"
-ln -sfn "$rendered/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
-ln -sfn "$rendered/agents/builder.md" "$HOME/.claude/agents/builder.md"
-# homegit's settings, plus accepting --dangerously-skip-permissions' warning
-# screen, which would otherwise wait for someone to attach and confirm it.
+ln -sfn "$rendered/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+# homegit's builder subagent briefs itself from the coordinator skill.
+rm -f "$HOME/.claude/agents/builder.md"
+# homegit's settings without the heartbeat status line, plus accepting
+# --dangerously-skip-permissions' warning screen.
 python3 - "$homegit/dotfiles/.claude/settings.json" "$HOME/.claude/settings.json" <<'EOF'
 import json, sys
 settings = json.load(open(sys.argv[1]))
+settings.pop("statusLine", None)
 settings["skipDangerousModePermissionPrompt"] = True
 json.dump(settings, open(sys.argv[2], "w"), indent=2)
 EOF
-
-# bot-poll (Rust); rebuilt only when its sources change.
-rev=$(git -C "$homegit" log -1 --format=%H -- crates/)
-if [ "$(cat "$HOME/.cargo/bot-poll.rev" 2>/dev/null)" != "$rev" ]; then
-    log "building bot-poll at ${rev:0:12}"
-    (cd "$homegit" && for c in crates/*/; do cargo install --quiet --locked --path "$c"; done)
-    echo "$rev" > "$HOME/.cargo/bot-poll.rev"
-fi
 
 bot-operator --json > /dev/null   # fail early on a bad operator config
 gh auth status >/dev/null 2>&1 || { log "gh is not logged in"; exit 1; }
@@ -77,16 +70,12 @@ print(json.dumps({"hasCompletedOnboarding": True,
 EOF
 fi
 
-# The session is the loop's to start, on the first available backend, in
-# tmux session `coordinator` in the clones directory: interactive, so the
-# operator can attach and talk to it, with permission prompts skipped (it
-# runs unattended, in this container), and COORDINATOR_PROMPT as its first
-# message. The loop also keeps bot-poll running outside the session, which
-# wakes only when there is something to handle: it types bot-poll's news
-# (kinds and run only), a daily brief reminder and handoffs into the
-# session, and stops it on SIGTERM (forwarded by the container's init,
-# RunInit=true). A poll run as the session's background task would wake it
-# every 2 hours, when Claude Code's Bash tool kills it.
+# No first message: the session waits for jmarrero. The container ends
+# with it, and systemd starts it again; a stop ends the session too.
 cd "$clones"
-log "starting; attach with: podman exec -it bot-coordinator tmux attach -t coordinator"
-exec bot-coordinator-loop run
+tmux new-session -d -s coordinator -x 200 -y 50 -c "$clones" \
+    claude --dangerously-skip-permissions --model "${COORDINATOR_MODEL:?}" --effort "${COORDINATOR_EFFORT:?}"
+trap 'tmux kill-server 2>/dev/null; exit 0' TERM INT
+log "started; attach with: podman exec -it bot-coordinator tmux attach -t coordinator"
+while tmux has-session -t coordinator 2>/dev/null; do sleep 10 & wait $!; done
+log "the session ended"
