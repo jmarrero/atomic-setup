@@ -1,6 +1,6 @@
 # Which GitHub Actions jobs may register runs at jmarrero's broker, and so
 # spend his Claude subscription: the format is praxis-credential-broker's
-# run-token-policy.yaml at 45fbb14c7a66 (its INTERNALS.md, "Run tokens" and
+# run-token-policy.yaml at 6da9c45581c3 (its INTERNALS.md, "Run tokens" and
 # "Admitting more workflows"). The gateway reads it when it starts: after
 # a change, pull and restart the pod while no run is active (README.md,
 # "Run-token policy"). It holds no secret, but whoever can change it
@@ -23,29 +23,30 @@
 audience: jmarrero-praxis-broker
 
 called_workflows:
-  # The tracker's wrapper in jmarrero-forge/actions, whose agent job joins
-  # the tailnet and then asks for the identity token it registers with
-  # (jmarrero-forge/tracker#20). That token's job_workflow_ref names the
-  # wrapper as the tracker's dispatch.yml calls it, at a full commit id, and
-  # its job_workflow_sha is that commit, so `sha` must be exactly the
-  # commit the tracker pins (`uses: ...cgwalters-agentic-job.yml@SHA`).
-  # 077c8a5675c8 is jmarrero-forge/actions#2 (agentic-job v0.6.2, the file
-  # then named jmarrero-agentic-job.yml), which the tracker's main pins
-  # today. To move the tracker's pin, add an entry for the new commit first
-  # and drop the old one after (README.md, "Moving the wrapper's pin").
-  - workflow: jmarrero-forge/actions/.github/workflows/jmarrero-agentic-job.yml
-    sha: 077c8a5675c88bb3771cba65e77e0672f98c1485
+  # The tracker's wrapper in jmarrero-forge/actions, whose register job
+  # asks for the identity token it registers with (jmarrero-forge/tracker#20).
+  # That token's job_workflow_ref names the wrapper as the tracker's
+  # dispatch.yml calls it, at a full commit id, and its job_workflow_sha is
+  # that commit, so `sha` must be exactly the commit the tracker pins
+  # (`uses: ...cgwalters-agentic-job.yml@SHA`). The agent job, in the
+  # wrapper's local cgwalters-agent.yml, has no identity token and gets the
+  # run token as a secret, so that file needs no entry. To move the
+  # tracker's pin, add an entry for the new commit first and drop the old
+  # one after (README.md, "Moving the wrapper's pin").
+  # 3bbed7bfd3c8 is jmarrero-forge/actions#3 (agentic-job v0.6.9), which
+  # the tracker's main pins today.
+  - workflow: jmarrero-forge/actions/.github/workflows/cgwalters-agentic-job.yml
+    sha: 3bbed7bfd3c81fc6620fd5f49a5c1bbaf4629e6c
     callers:
       repository_ids: [1400840502]
     events: [workflow_dispatch]
-  # The same wrapper at 3bbed7bfd3c8, jmarrero-forge/actions#3: synced
-  # 1:1 with cgwalters-forge/actions and agentic-job v0.6.9, under
-  # upstream's file name, its admit, deployment and tailscale actions
-  # pinned at a commit of the same main. Added beside the entry above so
-  # that the tracker's pin can move without a gap; drop that one once
-  # dispatch.yml names this commit.
+  # The same wrapper at cb9a5e2183e0, jmarrero-forge/actions#4: synced
+  # with cgwalters-forge/actions main and agentic-job v0.6.15, its admit,
+  # deployment and tailscale actions pinned at a commit of the same main.
+  # Added beside the entry above so that the tracker's pin can move
+  # without a gap; drop that one once dispatch.yml names this commit.
   - workflow: jmarrero-forge/actions/.github/workflows/cgwalters-agentic-job.yml
-    sha: 3bbed7bfd3c81fc6620fd5f49a5c1bbaf4629e6c
+    sha: cb9a5e2183e0a33612af916507dd864e7a464154
     callers:
       repository_ids: [1400840502]
     events: [workflow_dispatch]
