@@ -2,9 +2,9 @@
 // file into the Tailscale admin console under Access controls, replacing the
 // default allow-all policy.
 {
-	// jmarrero, invited to this tailnet as a member with his GitHub login
-	// (workboard-hub/README.md). Change both this and the tests below if he
-	// logs in as another identity.
+	// jmarrero, invited to this tailnet as a member with his GitHub login.
+	// Change both this and the tests below if he logs in as another
+	// identity.
 	"groups": {
 		"group:operator": ["jmarrero@github"],
 	},
@@ -18,14 +18,10 @@
 		"tag:agentic-job":   ["autogroup:admin"],
 	},
 	"grants": [
-		// The bot host may SSH to devspaces.
+		// The bot host may SSH to devspaces. Nothing may reach the bot host,
+		// on any port, and nothing from the bot host or a devspace may reach
+		// jmarrero's devices.
 		{"src": ["tag:bot-host"], "dst": ["tag:jmarrero-devspace"], "ip": ["tcp:22"]},
-		// jmarrero's devices may reach the workboard hub, which `tailscale
-		// serve` puts on the bot host's HTTPS port. Nothing else is allowed:
-		// in particular nothing from a devspace to the bot host, no other
-		// port of the bot host for anyone, and nothing from the bot host or
-		// a devspace to his devices.
-		{"src": ["group:operator"], "dst": ["tag:bot-host"], "ip": ["tcp:443"]},
 		// agentic-job runners may reach the broker's Praxis port, and
 		// nothing else: not the bot host, not a devspace, not each other.
 		// Every other port of the broker's node stays shut here, since its
@@ -39,8 +35,8 @@
 		{"src": "tag:jmarrero-devspace", "deny": ["tag:bot-host:22", "tag:bot-host:443", "jmarrero@github:22", "jmarrero@github:443"]},
 		{
 			"src":    "jmarrero@github",
-			"accept": ["tag:bot-host:443", "tag:praxis-broker:8081"],
-			"deny":   ["tag:bot-host:22", "tag:bot-host:80", "tag:bot-host:8421", "tag:jmarrero-devspace:22", "tag:praxis-broker:22", "tag:praxis-broker:8080"],
+			"accept": ["tag:praxis-broker:8081"],
+			"deny":   ["tag:bot-host:22", "tag:bot-host:80", "tag:bot-host:443", "tag:bot-host:8421", "tag:jmarrero-devspace:22", "tag:praxis-broker:22", "tag:praxis-broker:8080"],
 		},
 		{
 			"src":    "tag:agentic-job",

@@ -15,15 +15,7 @@ RUN dnf install -y \
         nodejs npm && \
     dnf clean all
 
-# opencode is pinned to the version the coordinator's opencode backend was
-# tested with: its Copilot provider pin and its builder agent's rules rest on
-# how opencode merges its config sources. Before each bump, re-run the
-# coordinator image's config check, which plants config of each kind and
-# sends the TUI a SIGUSR2 (config reload). It arrives with
-# jmarrero/atomic-setup#18 (bot/coordinator/check-opencode-config.py); once
-# that is merged:
-#   podman run --rm --entrypoint python3 localhost/bot-coordinator \
-#       /usr/local/share/bot-coordinator/check-opencode-config.py
+# opencode is pinned to the version botd's opencode agent was tested with.
 RUN npm install -g @anthropic-ai/claude-code @openai/codex @github/copilot opencode-ai@1.19.0 && \
     npm cache clean --force
 
